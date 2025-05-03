@@ -1,6 +1,21 @@
 import streamlit as st
 import pandas as pd
 
+# --- Password protection ---
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+
+if not st.session_state["authenticated"]:
+    st.title("🔒 Enter Password to Access the Sales Performance Tool")
+    password_input = st.text_input("Password", type="password")
+    if password_input == "wirelesszone":
+        st.session_state["authenticated"] = True
+        st.experimental_rerun()
+    elif password_input:
+        st.error("Incorrect password.")
+    st.stop()
+
+
 st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
 st.title("📊 Sales Performance Commissions/Results")
 
