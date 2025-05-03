@@ -50,6 +50,9 @@ if uploaded_file is not None:
             ]
             df_clean[numeric_cols] = df_clean[numeric_cols].fillna(0)
 
+            # Group by Employee and sum numeric fields
+            df_clean = df_clean.groupby('Employee', as_index=False)[numeric_cols].sum()
+
             df_clean['Total GA'] = df_clean['News'] + df_clean['Upgrades']
             df_clean['Ratio'] = df_clean.apply(
                 lambda row: round(row['News'] / row['Upgrades'], 2) if row['Upgrades'] != 0 else 0,
@@ -103,7 +106,6 @@ if uploaded_file is not None:
             st.subheader("📄 Preview of Cleaned & Highlighted Data")
             st.dataframe(styled, use_container_width=True)
 
-            # Export cleaned CSV
             csv_export = df_display.copy()
             csv_export['GP'] = csv_export['GP'].str.replace('$', '', regex=False).str.replace(',', '', regex=False)
             csv_export['GP Per Smart'] = csv_export['GP Per Smart'].str.replace('$', '', regex=False).str.replace(',', '', regex=False)
@@ -112,11 +114,8 @@ if uploaded_file is not None:
             csv_export['VZ Perks Rate (%)'] = csv_export['VZ Perks Rate (%)'].str.replace('%', '', regex=False)
             csv = csv_export.to_csv(index=False).encode('utf-8')
 
-            st.download_button("📥 Download Cleaned CSV", data=csv, file_name="cleaned_sales_summary.csv", mime='text/csv')
+            st.download_button("📅 Download Cleaned CSV", data=csv, file_name="cleaned_sales_summary.csv", mime='text/csv')
 
-            # -----------------------------------------
-            # 🔽 Point-Based Compensation Section
-            # -----------------------------------------
             st.divider()
             st.subheader("📈 Commission Calculator Based on Point System")
 
