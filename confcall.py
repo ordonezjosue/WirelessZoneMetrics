@@ -3,29 +3,6 @@ import pandas as pd
 
 st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
 
-# --- Password protection ---
-def check_password():
-    if "authenticated" not in st.session_state:
-        st.session_state["authenticated"] = False
-
-    if not st.session_state["authenticated"]:
-        st.title("🔒 Protected Access")
-        password = st.text_input("Enter Password", type="password")
-        if password == "wirelesszone":
-            st.session_state["authenticated"] = True
-            st.success("Access granted. Please wait...")
-            st.experimental_rerun()
-        elif password != "":
-            st.error("❌ Incorrect password")
-        return False
-    else:
-        return True
-
-if not check_password():
-    st.stop()
-
-
-
 st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
 st.title("📊 Sales Performance Commissions/Results")
 
