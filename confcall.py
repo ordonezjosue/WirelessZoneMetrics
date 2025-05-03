@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
-
+# Page configuration MUST be first Streamlit command
 st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
 st.title("📊 Sales Performance Commissions/Results")
 
@@ -76,7 +75,6 @@ if uploaded_file is not None:
 
             df_display = df_clean[final_cols].rename(columns={'GP Per Smart Display': 'GP Per Smart'})
 
-            # Conditional formatting logic
             styled_df = df_display.copy()
             styled_df['Ratio'] = df_clean['Ratio']
             styled_df['SMT GA'] = df_clean['SMT GA']
