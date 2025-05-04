@@ -7,6 +7,22 @@ st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
 st.title("📊 Sales Performance Commissions/Results")
 st.markdown("Upload your sales CSV and extract a clean, styled summary with point-based commission insights.")
 
+# --- Power BI Instructions ---
+st.markdown("""
+### 📥 How to Export Your Sales CSV from Power BI:
+
+1. Log into **Power BI**  
+2. Go to **WZ Sales Analysis**  
+3. Scroll to the bottom and select **KPI Details**  
+4. At the top, click **Employee**  
+5. Click the **three dots (⋯)** next to "More Options"  
+6. Select **Export data**  
+7. Choose **Summarized data**  
+8. Select **.CSV** as the file format and save it to your computer  
+9. Upload the CSV file below ⬇️
+""")
+
+
 # --- File Upload ---
 uploaded_file = st.file_uploader("📁 Upload your sales CSV file", type=["csv"])
 
