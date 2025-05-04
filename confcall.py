@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 
-# Page configuration MUST be first Streamlit command
+# Page configuration
 st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
 st.title("📊 Sales Performance Commissions/Results")
-
 st.markdown("Upload your sales CSV and extract a clean report with only the fields you need.")
 
 uploaded_file = st.file_uploader("📁 Upload your sales CSV file", type=["csv"])
@@ -16,7 +16,7 @@ if uploaded_file is not None:
         required_cols = [
             'Employee Full Name', 'GA', 'Upgrades', 'SMT GA', 'SMB GA',
             'VZ Perks Rate', '(RQ) Consumer SMT Prem Unlim %', 'VZ VHI GA',
-            'VZ FIOS GA', 'VMP Take Rate', 'GP'
+            'VZ FIOS GA', 'VMP Take Rate', 'GP', 'SMT QTY'
         ]
 
         missing_cols = [col for col in required_cols if col not in df.columns]
@@ -31,7 +31,8 @@ if uploaded_file is not None:
                 'SMB GA': 'SMB GA',
                 'VZ Perks Rate': 'VZ Perks Rate (%)',
                 '(RQ) Consumer SMT Prem Unlim %': 'Premium Unlim (%)',
-                'VMP Take Rate': 'VMP'
+                'VMP Take Rate': 'VMP',
+                'SMT QTY': 'SMT QTY'
             }, inplace=True)
 
             df_clean = df_clean[df_clean['Employee'].astype(str).str.split().str.len() >= 2]
@@ -43,26 +44,19 @@ if uploaded_file is not None:
 
             df_clean['GP'] = df_clean['GP'].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False)
             df_clean['GP'] = pd.to_numeric(df_clean['GP'], errors='coerce')
+            df_clean['SMT QTY'] = pd.to_numeric(df_clean['SMT QTY'], errors='coerce')
 
             numeric_cols = [
                 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'VZ Perks Rate (%)',
-                'Premium Unlim (%)', 'VZ VHI GA', 'VZ FIOS GA', 'VMP', 'GP'
+                'Premium Unlim (%)', 'VZ VHI GA', 'VZ FIOS GA', 'VMP', 'GP', 'SMT QTY'
             ]
             df_clean[numeric_cols] = df_clean[numeric_cols].fillna(0)
 
-            # Group by Employee and sum numeric fields
             df_clean = df_clean.groupby('Employee', as_index=False)[numeric_cols].sum()
 
             df_clean['Total GA'] = df_clean['News'] + df_clean['Upgrades']
-            df_clean['Ratio'] = df_clean.apply(
-                lambda row: round(row['News'] / row['Upgrades'], 2) if row['Upgrades'] != 0 else 0,
-                axis=1
-            )
-
-            df_clean['GP Per Smart'] = df_clean.apply(
-                lambda row: round(row['GP'] / row['Total GA'], 2) if row['Total GA'] != 0 else 0,
-                axis=1
-            )
+            df_clean['Ratio'] = np.where(df_clean['Upgrades'] != 0, df_clean['News'] / df_clean['Upgrades'], 0).round(2)
+            df_clean['GP Per Smart'] = np.where(df_clean['SMT QTY'] != 0, df_clean['GP'] / df_clean['SMT QTY'], 0).round(2)
 
             df_clean['GP'] = df_clean['GP'].apply(lambda x: f"${x:,.2f}")
             df_clean['GP Per Smart Display'] = df_clean['GP Per Smart'].apply(lambda x: f"${x:,.2f}")
@@ -78,6 +72,7 @@ if uploaded_file is not None:
 
             df_display = df_clean[final_cols].rename(columns={'GP Per Smart Display': 'GP Per Smart'})
 
+            # Style and highlight
             styled_df = df_display.copy()
             styled_df['Ratio'] = df_clean['Ratio']
             styled_df['SMT GA'] = df_clean['SMT GA']
@@ -106,6 +101,7 @@ if uploaded_file is not None:
             st.subheader("📄 Preview of Cleaned & Highlighted Data")
             st.dataframe(styled, use_container_width=True)
 
+            # Downloadable CSV
             csv_export = df_display.copy()
             csv_export['GP'] = csv_export['GP'].str.replace('$', '', regex=False).str.replace(',', '', regex=False)
             csv_export['GP Per Smart'] = csv_export['GP Per Smart'].str.replace('$', '', regex=False).str.replace(',', '', regex=False)
@@ -116,6 +112,9 @@ if uploaded_file is not None:
 
             st.download_button("📅 Download Cleaned CSV", data=csv, file_name="cleaned_sales_summary.csv", mime='text/csv')
 
+            # -------------------------------------
+            # Commission Calculator With GP Metric
+            # -------------------------------------
             st.divider()
             st.subheader("📈 Commission Calculator Based on Point System")
 
@@ -128,6 +127,7 @@ if uploaded_file is not None:
             df_points['GP_raw'] = df_points['GP'].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False)
             df_points['GP_raw'] = pd.to_numeric(df_points['GP_raw'], errors='coerce').fillna(0)
 
+            # Scoring functions
             def score_smt(x): return 4 if x >= 30 else 3 if x >= 25 else 2 if x >= 20 else 1 if x >= 1 else 0
             def score_upgrades(x): return 4 if x >= 65 else 3 if x >= 55 else 2 if x >= 45 else 1 if x >= 1 else 0
             def score_perks(x): return 4 if x >= 55 else 3 if x >= 40 else 2 if x >= 25 else 1 if x >= 1 else 0
@@ -137,7 +137,13 @@ if uploaded_file is not None:
             def score_vhi_fios(row):
                 combo = row['VZ VHI GA'] + row['VZ FIOS GA']
                 return 4 if combo >= 7 else 3 if combo >= 5 else 2 if combo >= 3 else 1 if combo >= 1 else 0
+            def score_gp(x):
+                if x >= 40001: return 4
+                elif x >= 30000: return 3
+                elif x >= 18201: return 2
+                else: return 1
 
+            # Apply scoring
             df_points['Score SMT'] = df_points['SMT GA'].apply(score_smt)
             df_points['Score Upgrades'] = df_points['Upgrades'].apply(score_upgrades)
             df_points['Score Perks'] = df_points['VZ Perks Rate (%)'].apply(score_perks)
@@ -145,10 +151,11 @@ if uploaded_file is not None:
             df_points['Score SMB'] = df_points['SMB GA'].apply(score_smb)
             df_points['Score Unlimited'] = df_points['Premium Unlim (%)'].apply(score_unlimited)
             df_points['Score VHI/FIOS'] = df_points.apply(score_vhi_fios, axis=1)
+            df_points['Score GP'] = df_points['GP_raw'].apply(score_gp)
 
             df_points['Points'] = df_points[[
                 'Score SMT', 'Score Upgrades', 'Score Perks', 'Score VMP',
-                'Score SMB', 'Score Unlimited', 'Score VHI/FIOS'
+                'Score SMB', 'Score Unlimited', 'Score VHI/FIOS', 'Score GP'
             ]].mean(axis=1).round(2)
 
             def get_commission(points):
