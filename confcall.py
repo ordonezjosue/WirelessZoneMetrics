@@ -9,7 +9,7 @@ st.markdown("Upload your sales CSV and extract a clean, styled summary with poin
 
 # --- Power BI Instructions ---
 st.markdown("""
-### 📥 How to Export Your Sales CSV from Power BI:
+### 📅 How to Export Your Sales CSV from Power BI:
 
 1. Log into **Power BI**  
 2. Go to **WZ Sales Analysis**  
@@ -21,7 +21,6 @@ st.markdown("""
 8. Select **.CSV** as the file format and save it to your computer  
 9. Upload the CSV file below ⬇️
 """)
-
 
 # --- File Upload ---
 uploaded_file = st.file_uploader("📁 Upload your sales CSV file", type=["csv"])
@@ -41,12 +40,9 @@ if uploaded_file is not None:
         if missing_cols:
             st.error(f"❌ Missing columns: {', '.join(missing_cols)}")
         else:
-            # Standardize column names
             df.rename(columns={
                 'Employee Full Name': 'Employee',
                 'GA': 'News',
-                'SMT GA': 'SMT GA',
-                'SMB GA': 'SMB GA',
                 'VZ Perks Rate': 'VZ Perks Rate (%)',
                 '(RQ) Consumer SMT Prem Unlim %': 'Premium Unlim (%)',
                 'VMP Take Rate': 'VMP'
@@ -55,108 +51,91 @@ if uploaded_file is not None:
             df = df[df['Employee'].astype(str).str.split().str.len() >= 2]
             df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
 
-            # Normalize names
             df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
-            # Convert numeric columns
+            # Store full dataset for preview
+            df_display_all = df.copy()
+
+            # Exclude Josh and Wiguen from commissions
+            df = df[~df['Employee'].str.lower().isin(['josh ordonez', 'thimotee wiguen'])]
+
             for col in ['Premium Unlim (%)', 'VMP', 'VZ Perks Rate (%)']:
                 df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', ''), errors='coerce')
+                df_display_all[col] = pd.to_numeric(df_display_all[col].astype(str).str.replace('%', ''), errors='coerce')
+
             df['GP'] = pd.to_numeric(df['GP'].astype(str).str.replace(r'[\$,]', '', regex=True), errors='coerce')
+            df_display_all['GP'] = pd.to_numeric(df_display_all['GP'].astype(str).str.replace(r'[\$,]', '', regex=True), errors='coerce')
+
             df['SMT QTY'] = pd.to_numeric(df['SMT QTY'], errors='coerce')
+            df_display_all['SMT QTY'] = pd.to_numeric(df_display_all['SMT QTY'], errors='coerce')
 
             numeric_cols = [
                 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'VZ Perks Rate (%)',
                 'Premium Unlim (%)', 'VZ VHI GA', 'VZ FIOS GA', 'VMP', 'GP', 'SMT QTY'
             ]
             df[numeric_cols] = df[numeric_cols].fillna(0)
+            df_display_all[numeric_cols] = df_display_all[numeric_cols].fillna(0)
 
             df = df.groupby('Employee', as_index=False)[numeric_cols].sum()
+            df_display_all = df_display_all.groupby('Employee', as_index=False)[numeric_cols].sum()
 
-            # Calculate metrics
-            df['Total GA'] = df['News'] + df['Upgrades']
-            df['Ratio'] = np.where(df['Upgrades'] != 0, df['News'] / df['Upgrades'], 0).round(2)
-            df['GP Per Smart'] = np.where(df['SMT QTY'] != 0, df['GP'] / df['SMT QTY'], 0).round(2)
+            for data in [df, df_display_all]:
+                data['Total GA'] = data['News'] + data['Upgrades']
+                data['Ratio'] = np.where(data['Upgrades'] != 0, data['News'] / data['Upgrades'], 0).round(2)
+                data['GP Per Smart'] = np.where(data['SMT QTY'] != 0, data['GP'] / data['SMT QTY'], 0).round(2)
 
-            # Format values for display
-            df_display = df.copy()
-            df_display['GP'] = df['GP'].apply(lambda x: f"${x:,.2f}")
-            df_display['GP Per Smart'] = df['GP Per Smart'].apply(lambda x: f"${x:,.2f}")
-            df_display['VZ Perks Rate (%)'] = df['VZ Perks Rate (%)'].apply(lambda x: f"{x:.2f}%")
-            df_display['Premium Unlim (%)'] = df['Premium Unlim (%)'].apply(lambda x: f"{x:.2f}%")
-            df_display['VMP'] = df['VMP'].apply(lambda x: f"{x:.2f}%")
+            df_display_all_display = df_display_all.copy()
+            df_display_all_display['GP'] = df_display_all['GP'].round(2).apply(lambda x: f"${x:,.2f}")
+            df_display_all_display['GP Per Smart'] = df_display_all['GP Per Smart'].round(2).apply(lambda x: f"${x:,.2f}")
+            df_display_all_display['VZ Perks Rate (%)'] = df_display_all['VZ Perks Rate (%)'].round(2).apply(lambda x: f"{x:.2f}%")
+            df_display_all_display['Premium Unlim (%)'] = df_display_all['Premium Unlim (%)'].round(2).apply(lambda x: f"{x:.2f}%")
+            df_display_all_display['VMP'] = df_display_all['VMP'].round(2).apply(lambda x: f"{x:.2f}%")
 
-            final_cols = [
-                'Employee', 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'Total GA', 'Ratio',
-                'VZ Perks Rate (%)', 'Premium Unlim (%)', 'VMP',
-                'VZ VHI GA', 'VZ FIOS GA', 'GP', 'GP Per Smart'
-            ]
-            df_display = df_display[final_cols]
+            for col in ['Ratio', 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'Total GA', 'VZ VHI GA', 'VZ FIOS GA']:
+                df_display_all_display[col] = df_display_all[col].round(2)
 
             # Add Total Row
-            totals_numeric = df_display.select_dtypes(include=[np.number]).sum(numeric_only=True)
-            averages = df[['Ratio', 'VZ Perks Rate (%)', 'Premium Unlim (%)', 'VMP', 'GP Per Smart']].mean()
-
             total_row = {
                 'Employee': 'TOTAL',
-                'News': df['News'].sum(),
-                'Upgrades': df['Upgrades'].sum(),
-                'SMT GA': df['SMT GA'].sum(),
-                'SMB GA': df['SMB GA'].sum(),
-                'Total GA': df['Total GA'].sum(),
-                'Ratio': round(averages['Ratio'], 2),
-                'VZ Perks Rate (%)': f"{averages['VZ Perks Rate (%)']:.2f}%",
-                'Premium Unlim (%)': f"{averages['Premium Unlim (%)']:.2f}%",
-                'VMP': f"{averages['VMP']:.2f}%",
-                'VZ VHI GA': df['VZ VHI GA'].sum(),
-                'VZ FIOS GA': df['VZ FIOS GA'].sum(),
-                'GP': f"${df['GP'].sum():,.2f}",
-                'GP Per Smart': f"${averages['GP Per Smart']:,.2f}"
+                'News': df_display_all['News'].sum().round(2),
+                'Upgrades': df_display_all['Upgrades'].sum().round(2),
+                'SMT GA': df_display_all['SMT GA'].sum().round(2),
+                'SMB GA': df_display_all['SMB GA'].sum().round(2),
+                'VZ Perks Rate (%)': f"{df_display_all['VZ Perks Rate (%)'].mean():.2f}%",
+                'Premium Unlim (%)': f"{df_display_all['Premium Unlim (%)'].mean():.2f}%",
+                'VZ VHI GA': df_display_all['VZ VHI GA'].sum().round(2),
+                'VZ FIOS GA': df_display_all['VZ FIOS GA'].sum().round(2),
+                'VMP': f"{df_display_all['VMP'].mean():.2f}%",
+                'GP': f"${df_display_all['GP'].sum():,.2f}",
+                'SMT QTY': df_display_all['SMT QTY'].sum().round(2),
+                'Total GA': df_display_all['Total GA'].sum().round(2),
+                'Ratio': df_display_all['Ratio'].mean().round(2),
+                'GP Per Smart': f"${df_display_all['GP'].sum() / df_display_all['SMT QTY'].sum():,.2f}" if df_display_all['SMT QTY'].sum() > 0 else "$0.00"
             }
-            df_display = pd.concat([df_display, pd.DataFrame([total_row])], ignore_index=True)
-
-            # Highlighting Rules
-            styled_df = df_display.copy()
-            styled_df[['Ratio', 'SMT GA', 'SMB GA']] = styled_df[['Ratio', 'SMT GA', 'SMB GA']].apply(pd.to_numeric, errors='coerce')
-            styled_df['VZ Perks Rate (%)'] = styled_df['VZ Perks Rate (%)'].astype(str).str.replace('%', '').astype(float)
-            styled_df['VMP'] = styled_df['VMP'].astype(str).str.replace('%', '').astype(float)
-            styled_df['Premium Unlim (%)'] = styled_df['Premium Unlim (%)'].astype(str).str.replace('%', '').astype(float)
-            styled_df['GP Per Smart'] = styled_df['GP Per Smart'].astype(str).str.replace(r'[\$,]', '', regex=True).astype(float)
-
-            def highlight(val, goal):
-                try:
-                    return 'background-color: lightgreen' if float(val) >= goal else 'background-color: lightcoral'
-                except:
-                    return ''
-
-            styled = styled_df.style\
-                .applymap(lambda v: highlight(v, 0.5), subset=['Ratio'])\
-                .applymap(lambda v: highlight(v, 30), subset=['SMT GA'])\
-                .applymap(lambda v: highlight(v, 56), subset=['VZ Perks Rate (%)'])\
-                .applymap(lambda v: highlight(v, 55), subset=['VMP'])\
-                .applymap(lambda v: highlight(v, 460), subset=['GP Per Smart'])\
-                .applymap(lambda v: highlight(v, 3), subset=['SMB GA'])\
-                .applymap(lambda v: highlight(v, 65), subset=['Premium Unlim (%)'])
+            df_display_all_display = pd.concat([df_display_all_display, pd.DataFrame([total_row])], ignore_index=True)
 
             st.success("✅ Data processed successfully!")
             st.subheader("📄 Preview of Cleaned & Highlighted Data")
-            st.dataframe(styled, use_container_width=True)
+            st.dataframe(df_display_all_display, use_container_width=True)
 
             # --- Commission Table ---
             st.divider()
             st.subheader("📈 Commission Calculator Based on Point System")
 
-            df_points = df_display.copy()
+            df_points = df.copy()
             for col in ['VZ Perks Rate (%)', 'Premium Unlim (%)', 'VMP']:
-                df_points[col] = pd.to_numeric(df_points[col].astype(str).str.replace('%', ''), errors='coerce')
-            df_points['GP_raw'] = pd.to_numeric(df_points['GP'].astype(str).str.replace(r'[\$,]', '', regex=True), errors='coerce')
+                df_points[col] = df_points[col].astype(str).str.replace('%', '').astype(float)
+                df_points[col] = df_points[col].apply(lambda x: x * 100 if x < 1 else x)
 
-            def score_smt(x): return 4 if x >= 30 else 3 if x >= 25 else 2 if x >= 20 else 1 if x >= 1 else 0
-            def score_upgrades(x): return 4 if x >= 65 else 3 if x >= 55 else 2 if x >= 45 else 1 if x >= 1 else 0
-            def score_perks(x): return 4 if x >= 55 else 3 if x >= 40 else 2 if x >= 25 else 1 if x >= 1 else 0
-            def score_vmp(x): return 4 if x >= 75 else 3 if x >= 65 else 2 if x >= 55 else 1 if x >= 1 else 0
-            def score_smb(x): return 4 if x >= 7 else 3 if x >= 5 else 2 if x >= 3 else 1 if x >= 1 else 0
-            def score_unlimited(x): return 4 if x >= 65 else 3 if x >= 60 else 2 if x >= 55 else 1 if x >= 1 else 0
-            def score_vhi_fios(row): return 4 if (row['VZ VHI GA'] + row['VZ FIOS GA']) >= 7 else 3 if (row['VZ VHI GA'] + row['VZ FIOS GA']) >= 5 else 2 if (row['VZ VHI GA'] + row['VZ FIOS GA']) >= 3 else 1 if (row['VZ VHI GA'] + row['VZ FIOS GA']) >= 1 else 0
+            df_points['GP_raw'] = df_points['GP'].astype(float)
+
+            def score_smt(x): return 4 if x >= 30 else 3 if x >= 25 else 2 if x >= 20 else 1
+            def score_upgrades(x): return 4 if x >= 65 else 3 if x >= 55 else 2 if x >= 45 else 1
+            def score_perks(x): return 4 if x >= 55 else 3 if x >= 40 else 2 if x >= 25 else 1
+            def score_vmp(x): return 4 if x >= 75 else 3 if x >= 65 else 2 if x >= 55 else 1
+            def score_smb(x): return 4 if x >= 7 else 3 if x >= 5 else 2 if x >= 3 else 1
+            def score_unlimited(x): return 4 if x >= 65 else 3 if x >= 60 else 2 if x >= 55 else 1
+            def score_vhi_fios(row): return 4 if (row['VZ VHI GA'] + row['VZ FIOS GA']) >= 7 else 3 if (row['VZ VHI GA'] + row['VZ FIOS GA']) >= 5 else 2 if (row['VZ VHI GA'] + row['VZ FIOS GA']) >= 3 else 1
             def score_gp(x): return 4 if x >= 40001 else 3 if x >= 30000 else 2 if x >= 18201 else 1
 
             df_points['Score SMT'] = df['SMT GA'].apply(score_smt)
@@ -185,5 +164,6 @@ if uploaded_file is not None:
                 'Points', 'Commission %', 'Commission Earned'
             ]], use_container_width=True)
 
+           
     except Exception as e:
         st.error(f"❌ An error occurred while processing the file:\n{e}")
