@@ -13,8 +13,6 @@ uploaded_file = st.file_uploader("📁 Upload your sales CSV file", type=["csv"]
 if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
-
-        # Normalize column names
         df.columns = [col.strip() for col in df.columns]
         df.rename(columns={'SMT Qty': 'SMT QTY'}, inplace=True)
 
@@ -50,7 +48,6 @@ if uploaded_file is not None:
                 'Premium Unlim (%)', 'VZ VHI GA', 'VZ FIOS GA', 'VMP', 'GP', 'SMT QTY'
             ]
             df[numeric_cols] = df[numeric_cols].fillna(0)
-
             df = df.groupby('Employee', as_index=False)[numeric_cols].sum()
 
             df['Total GA'] = df['News'] + df['Upgrades']
@@ -69,6 +66,35 @@ if uploaded_file is not None:
                 'VZ VHI GA', 'VZ FIOS GA', 'GP', 'GP Per Smart Display'
             ]
             df_display = df[final_cols].rename(columns={'GP Per Smart Display': 'GP Per Smart'})
+
+            # --- Styled DataFrame ---
+            styled_df = df_display.copy()
+            styled_df['Ratio'] = df['Ratio']
+            styled_df['SMT GA'] = df['SMT GA']
+            styled_df['VZ Perks Rate (%)'] = df['VZ Perks Rate (%)'].str.replace('%', '').astype(float)
+            styled_df['VMP'] = df['VMP'].str.replace('%', '').astype(float)
+            styled_df['GP Per Smart'] = df['GP Per Smart']
+            styled_df['SMB GA'] = df['SMB GA']
+            styled_df['Premium Unlim (%)'] = df['Premium Unlim (%)'].str.replace('%', '').astype(float)
+
+            def highlight(val, goal):
+                try:
+                    return 'background-color: lightgreen' if float(val) >= goal else 'background-color: lightcoral'
+                except:
+                    return ''
+
+            styled = styled_df.style\
+                .applymap(lambda v: highlight(v, 0.5), subset=['Ratio'])\
+                .applymap(lambda v: highlight(v, 30), subset=['SMT GA'])\
+                .applymap(lambda v: highlight(v, 56), subset=['VZ Perks Rate (%)'])\
+                .applymap(lambda v: highlight(v, 55), subset=['VMP'])\
+                .applymap(lambda v: highlight(v, 460), subset=['GP Per Smart'])\
+                .applymap(lambda v: highlight(v, 3), subset=['SMB GA'])\
+                .applymap(lambda v: highlight(v, 65), subset=['Premium Unlim (%)'])
+
+            st.success("✅ Data processed successfully!")
+            st.subheader("📄 Preview of Cleaned & Highlighted Data")
+            st.dataframe(styled, use_container_width=True)
 
             # --- Commission Section ---
             st.divider()
@@ -109,23 +135,6 @@ if uploaded_file is not None:
                 lambda row: f"${row['GP_raw'] * float(row['Commission %'].replace('%', '')) / 100:,.2f}", axis=1)
 
             st.dataframe(df_points[['Employee', 'Points', 'Commission %', 'Commission Earned']])
-
-            def get_below_avg_metrics(row):
-                scores = {
-                    'SMT GA': row['Score SMT'],
-                    'Upgrades': row['Score Upgrades'],
-                    'Perks': row['Score Perks'],
-                    'VMP': row['Score VMP'],
-                    'SMB': row['Score SMB'],
-                    'Unlimited Plus': row['Score Unlimited'],
-                    'VHI/FIOS': row['Score VHI/FIOS'],
-                    'GP': row['Score GP']
-                }
-                return ", ".join([k for k, v in scores.items() if v < row['Points']])
-
-            df_points['Below Avg Metrics'] = df_points.apply(get_below_avg_metrics, axis=1)
-            st.subheader("📌 Areas of Improvement by Rep")
-            st.dataframe(df_points[['Employee', 'Points', 'Below Avg Metrics']], use_container_width=True)
 
     except Exception as e:
         st.error(f"❌ An error occurred while processing the file:\n{e}")
