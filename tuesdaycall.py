@@ -26,20 +26,19 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📊 Current Sales Performance Overview")
-uploaded_file = st.file_uploader("📁 Upload your sales CSV file", type=["csv"])
+st.title("\U0001F4CA Current Sales Performance Overview")
+uploaded_file = st.file_uploader("\U0001F4C1 Upload your sales CSV file", type=["csv"])
 
 if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
         df.columns = [col.strip() for col in df.columns]
-        st.write("✅ Columns loaded:", df.columns.tolist())
+        st.write("\u2705 Columns loaded:", df.columns.tolist())
 
-        if 'SMT QTY' not in df.columns:
-            st.error("❌ The required column 'SMT QTY' was not found in your CSV.")
+        if 'SMT Qty' not in df.columns:
+            st.error("\u274C The required column 'SMT Qty' was not found in your CSV.")
             st.stop()
 
-        # Rename necessary columns
         df.rename(columns={
             'Employee Full Name': 'Employee',
             'GA': 'News',
@@ -54,20 +53,18 @@ if uploaded_file is not None:
         df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
         df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
-        # Convert percent and currency values
         for col in ['Perks', 'VMP', 'Premium Unlimited']:
             df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', ''), errors='coerce')
         df['GP'] = pd.to_numeric(df['GP'].astype(str).str.replace(r'[\$,]', '', regex=True), errors='coerce')
 
-        # Convert numeric fields
-        for col in ['News', 'Upgrades', 'SMT GA', 'SMB GA', 'SMT QTY', 'VZ VHI GA', 'VZ FIOS GA', 'VZPH', 'Verizon Visa']:
+        for col in ['News', 'Upgrades', 'SMT GA', 'SMB GA', 'SMT Qty', 'VZ VHI GA', 'VZ FIOS GA', 'VZPH', 'Verizon Visa']:
             df[col] = pd.to_numeric(df[col], errors='coerce')
-        df.fillna(0, inplace=True)
 
+        df.fillna(0, inplace=True)
         df_grouped = df.groupby('Employee', as_index=False).sum()
         df_grouped['Total Boxes'] = df_grouped['News'] + df_grouped['Upgrades']
         df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0, df_grouped['News'] / df_grouped['Upgrades'], 0).round(2)
-        df_grouped['GP Per Smart'] = np.where(df_grouped['SMT QTY'] != 0, df_grouped['GP'] / df_grouped['SMT QTY'], 0).round(2)
+        df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0).round(2)
         df_grouped['VHI/FIOS'] = df_grouped.get('VZ VHI GA', 0) + df_grouped.get('VZ FIOS GA', 0)
 
         final_cols = [
@@ -87,7 +84,7 @@ if uploaded_file is not None:
             'SMT GA': df_grouped['SMT GA'].sum(),
             'Perks': f"{df_grouped['Perks'].mean():.2f}%",
             'VMP': f"{df_grouped['VMP'].mean():.2f}%",
-            'GP Per Smart': f"${(total_gp_value / df_grouped['SMT QTY'].sum()):,.2f}" if df_grouped['SMT QTY'].sum() > 0 else "$0.00",
+            'GP Per Smart': f"${(total_gp_value / df_grouped['SMT Qty'].sum()):,.2f}" if df_grouped['SMT Qty'].sum() > 0 else "$0.00",
             'GP': f"${total_gp_value:,.2f}",
             'SMB GA': df_grouped['SMB GA'].sum(),
             'Premium Unlimited': f"{df_grouped['Premium Unlimited'].mean():.2f}%",
@@ -97,61 +94,12 @@ if uploaded_file is not None:
         }
         df_display = pd.concat([df_display, pd.DataFrame([totals])], ignore_index=True)
 
-        # Format values
-        def format_currency(val):
-            try: return f"${float(val):,.2f}"
-            except: return val
-        def format_percent(val):
-            try: return f"{float(val):.2f}%"
-            except: return val
-        for col in ['GP', 'GP Per Smart']:
-            df_display[col] = df_display[col].apply(format_currency)
-        for col in ['Perks', 'VMP', 'Premium Unlimited']:
-            df_display[col] = df_display[col].apply(format_percent)
+        st.success("\u2705 File processed successfully!")
+        st.subheader("\U0001F4C4 Performance Table with Goals & Totals")
+        st.dataframe(df_display, use_container_width=True)
 
-        # Add Goals row
-        goals_row = pd.DataFrame([{
-            'Employee': 'GOALS',
-            'News': '', 'Upgrades': '', 'Total Boxes': '',
-            'Ratio': 0.5, 'SMT GA': '', 'Perks': '56%',
-            'VMP': '55%', 'GP Per Smart': '$460.00', 'GP': '',
-            'SMB GA': 3, 'Premium Unlimited': '65%',
-            'VHI/FIOS': 7, 'VZPH': 2, 'Verizon Visa': 1
-        }])
-        df_display = pd.concat([goals_row[final_cols], df_display], ignore_index=True)
-
-        # Highlight goals
-        def highlight_goals_and_performance(row):
-            styles = [''] * len(row)
-            if row.name == 0:
-                return ['background-color: #333333; color: white; border: 1px solid green;'] * len(row)
-
-            def pass_fail(val, threshold):
-                try:
-                    v = float(str(val).replace('%', '').replace('$', '').replace(',', ''))
-                    return 'background-color: green; color: white; border: 1px solid green;' if v >= threshold else 'background-color: #8B0000; color: white; border: 1px solid green;'
-                except:
-                    return 'color: white; border: 1px solid green;'
-
-            column_goal_map = {
-                'Ratio': 0.5, 'Perks': 56, 'VMP': 55,
-                'GP Per Smart': 460, 'SMB GA': 3,
-                'Premium Unlimited': 65, 'VHI/FIOS': 7,
-                'VZPH': 2, 'Verizon Visa': 1
-            }
-            for col, goal in column_goal_map.items():
-                idx = df_display.columns.get_loc(col)
-                styles[idx] = pass_fail(row[col], goal)
-            return styles
-
-        styled_df = df_display.style.apply(highlight_goals_and_performance, axis=1)
-
-        st.success("✅ File processed successfully!")
-        st.subheader("📄 Performance Table with Goals & Totals")
-        st.dataframe(styled_df, use_container_width=True)
-
-        st.subheader("📊 Current Month Trend")
-        st.markdown(f"💡 **Trend so far:** `${total_gp_value:,.2f}` in Gross Profit this month.")
+        st.subheader("\U0001F4CA Current Month Trend")
+        st.markdown(f"\U0001F4A1 **Trend so far:** `${total_gp_value:,.2f}` in Gross Profit this month.")
 
     except Exception as e:
-        st.error(f"❌ Error while processing file:\n\n{e}")
+        st.error(f"\u274C Error while processing file:\n\n{e}")
