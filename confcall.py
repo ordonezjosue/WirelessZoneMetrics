@@ -13,7 +13,7 @@ def check_password():
             st.session_state["authenticated"] = False
 
     if "authenticated" not in st.session_state:
-        st.text_input("🔐 Enter password to access this app:", type="password", on_change=password_entered, key="password")
+        st.text_input("\U0001f512 Enter password to access this app:", type="password", on_change=password_entered, key="password")
         st.stop()
     elif not st.session_state["authenticated"]:
         st.error("❌ Incorrect password")
@@ -26,9 +26,26 @@ st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
 st.title("📊 Sales Performance Commissions/Results")
 st.markdown("Upload your sales CSV and extract a clean, styled summary with point-based commission insights.")
 
+# --- Developer Button (shows only before file upload) ---
+uploaded_file = st.file_uploader("📁 Upload your sales CSV file", type=["csv"])
+
+if uploaded_file is None:
+    st.markdown(
+        """
+        <div style="text-align: center; margin-top: 20px; margin-bottom: 10px;">
+            <a href="https://your-second-app.streamlit.app" target="_blank">
+                <button style="font-size:14px; padding:6px 12px; border-radius:4px; background-color:#f0f0f0; color:#000; border:1px solid #ccc;">
+                    Developer
+                </button>
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
 # --- Power BI Instructions ---
 st.markdown("""
-### 📅 How to Export Your Sales CSV from Power BI:
+### 🗓️ How to Export Your Sales CSV from Power BI:
 
 1. Log into **Power BI**  
 2. Go to **WZ Sales Analysis**  
@@ -38,12 +55,10 @@ st.markdown("""
 6. Select **Export data**  
 7. Choose **Summarized data**  
 8. Select **.CSV** as the file format and save it to your computer  
-9. Upload the CSV file below ⬇️
+9. Upload the CSV file above ⬇️
 """)
 
-# --- File Upload ---
-uploaded_file = st.file_uploader("📁 Upload your sales CSV file", type=["csv"])
-
+# --- File Handling ---
 if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
@@ -181,17 +196,3 @@ if uploaded_file is not None:
 
     except Exception as e:
         st.error(f"❌ An error occurred while processing the file:\n{e}")
-
-    # --- Link to another Streamlit app (centered button) ---
-    st.markdown(
-        """
-        <div style="display: flex; justify-content: center; margin-top: 50px;">
-            <a href="https://your-second-app.streamlit.app" target="_blank">
-                <button style="font-size:18px; padding:10px 20px; border-radius:10px; background-color:#4CAF50; color:white; border:none;">
-                    🚀 Open Sales Performance App
-                </button>
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
