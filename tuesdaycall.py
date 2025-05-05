@@ -2,7 +2,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-# --- Force Dark Mode Globally ---
+# --- MUST be first Streamlit command ---
+st.set_page_config(page_title="Current Sales Performance", layout="wide")
+
+# --- Global Dark Theme Override ---
 st.markdown("""
     <style>
         body {
@@ -15,14 +18,15 @@ st.markdown("""
         }
         table {
             color: #ffffff !important;
+            border: 1px solid green !important;
+        }
+        th, td {
+            border: 1px solid green !important;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Page Setup ---
-st.set_page_config(page_title="Current Sales Performance", layout="wide")
 st.title("📊 Current Sales Performance Overview")
-
 uploaded_file = st.file_uploader("📁 Upload your sales CSV file", type=["csv"])
 
 if uploaded_file is not None:
@@ -62,12 +66,10 @@ if uploaded_file is not None:
                 df[col] = 0
 
         df.fillna(0, inplace=True)
-
         df['News'] = pd.to_numeric(df['News'], errors='coerce')
         df['Upgrades'] = pd.to_numeric(df['Upgrades'], errors='coerce')
 
         df_grouped = df.groupby('Employee', as_index=False).sum()
-
         df_grouped['Total Boxes'] = df_grouped['News'] + df_grouped['Upgrades']
         df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0,
                                        df_grouped['News'] / df_grouped['Upgrades'], 0).round(2)
@@ -142,14 +144,14 @@ if uploaded_file is not None:
         def highlight_goals_and_performance(row):
             styles = [''] * len(row)
             if row.name == 0:
-                return ['background-color: #333333'] * len(row)  # dark grey for goal row
+                return ['background-color: #333333; color: white; border: 1px solid green;'] * len(row)
 
             def pass_fail(val, threshold):
                 try:
                     v = float(str(val).replace('%', '').replace('$', '').replace(',', ''))
-                    return 'background-color: green' if v >= threshold else 'background-color: #8B0000'
+                    return 'background-color: green; color: white; border: 1px solid green;' if v >= threshold else 'background-color: #8B0000; color: white; border: 1px solid green;'
                 except:
-                    return ''
+                    return 'color: white; border: 1px solid green;'
 
             column_goal_map = {
                 'Ratio': 0.5,
