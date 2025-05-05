@@ -12,4 +12,4 @@ headless = true
 enableCORS = false
 port = 8501
 enableXsrfProtection = false
-script = "Home.py"  # <-- change to your actual file name
+script = "confcall.py"  # <-- change to your actual file name
