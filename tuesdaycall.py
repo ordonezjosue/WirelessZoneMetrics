@@ -2,6 +2,23 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+# --- Force Dark Mode Globally ---
+st.markdown("""
+    <style>
+        body {
+            background-color: #0e1117;
+            color: #ffffff;
+        }
+        .stApp {
+            background-color: #0e1117;
+            color: #ffffff;
+        }
+        table {
+            color: #ffffff !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 # --- Page Setup ---
 st.set_page_config(page_title="Current Sales Performance", layout="wide")
 st.title("📊 Current Sales Performance Overview")
@@ -46,18 +63,10 @@ if uploaded_file is not None:
 
         df.fillna(0, inplace=True)
 
-        # --- DEBUG: Force numeric again for safety ---
         df['News'] = pd.to_numeric(df['News'], errors='coerce')
         df['Upgrades'] = pd.to_numeric(df['Upgrades'], errors='coerce')
 
         df_grouped = df.groupby('Employee', as_index=False).sum()
-
-        # --- DEBUG Check types ---
-        st.write("✅ Data types before summing News + Upgrades:")
-        st.write("News type:", df_grouped['News'].dtype)
-        st.write("Upgrades type:", df_grouped['Upgrades'].dtype)
-        st.write("News sample:", df_grouped['News'].head())
-        st.write("Upgrades sample:", df_grouped['Upgrades'].head())
 
         df_grouped['Total Boxes'] = df_grouped['News'] + df_grouped['Upgrades']
         df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0,
@@ -74,7 +83,6 @@ if uploaded_file is not None:
         ]
         df_display = df_grouped[final_cols].copy()
 
-        # --- Totals ---
         total_gp_value = df_grouped['GP'].sum()
         totals = {
             'Employee': 'TOTALS / AVG',
@@ -95,7 +103,6 @@ if uploaded_file is not None:
         }
         df_display = pd.concat([df_display, pd.DataFrame([totals])], ignore_index=True)
 
-        # --- Formatting ---
         def format_currency(val):
             try:
                 return f"${float(val):,.2f}"
@@ -113,7 +120,6 @@ if uploaded_file is not None:
         for col in ['Perks', 'VMP', 'Premium Unlimited']:
             df_display[col] = df_display[col].apply(format_percent)
 
-        # --- Goals Row ---
         goals_row = pd.DataFrame([{
             'Employee': 'GOALS',
             'News': '',
@@ -133,11 +139,37 @@ if uploaded_file is not None:
         }])
         df_display = pd.concat([goals_row[final_cols], df_display], ignore_index=True)
 
-        # --- Shade Goals Row ---
-        def highlight_goals_row(row):
-            return ['background-color: lightgrey' if row.name == 0 else '' for _ in row]
+        def highlight_goals_and_performance(row):
+            styles = [''] * len(row)
+            if row.name == 0:
+                return ['background-color: #333333'] * len(row)  # dark grey for goal row
 
-        styled_df = df_display.style.apply(highlight_goals_row, axis=1)
+            def pass_fail(val, threshold):
+                try:
+                    v = float(str(val).replace('%', '').replace('$', '').replace(',', ''))
+                    return 'background-color: green' if v >= threshold else 'background-color: #8B0000'
+                except:
+                    return ''
+
+            column_goal_map = {
+                'Ratio': 0.5,
+                'Perks': 56,
+                'VMP': 55,
+                'GP Per Smart': 460,
+                'SMB GA': 3,
+                'Premium Unlimited': 65,
+                'VHI/FIOS': 7,
+                'VZPH': 2,
+                'Verizon Visa': 1
+            }
+
+            for col, goal in column_goal_map.items():
+                idx = df_display.columns.get_loc(col)
+                styles[idx] = pass_fail(row[col], goal)
+
+            return styles
+
+        styled_df = df_display.style.apply(highlight_goals_and_performance, axis=1)
 
         st.success("✅ File processed successfully!")
         st.subheader("📄 Performance Table with Goals & Totals")
