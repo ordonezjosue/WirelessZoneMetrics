@@ -57,8 +57,6 @@ if uploaded_file is not None:
                                        df_grouped['News'] / df_grouped['Upgrades'], 0).round(2)
         df_grouped['GP Per Smart'] = np.where(df_grouped['SMT QTY'] != 0,
                                               df_grouped['GP'] / df_grouped['SMT QTY'], 0).round(2)
-
-        # ✅ Safely calculate VHI/FIOS
         df_grouped['VHI/FIOS'] = pd.to_numeric(df_grouped.get('VZ VHI GA', 0), errors='coerce').fillna(0) + \
                                  pd.to_numeric(df_grouped.get('VZ FIOS GA', 0), errors='coerce').fillna(0)
 
@@ -70,25 +68,7 @@ if uploaded_file is not None:
         ]
         df_display = df_grouped[final_cols].copy()
 
-        # --- Top Row: Goals ---
-        goals = {
-            'Employee': 'Goal',
-            'Ratio': 0.5,
-            'Perks': '56%',
-            'VMP': '55%',
-            'GP Per Smart': '$460.00',
-            'SMB GA': 3,
-            'Premium Unlimited': '65%',
-            'VHI/FIOS': 7,
-            'VZPH': 2,
-            'Verizon Visa': 1
-        }
-        goals_row = {col: goals.get(col, '') for col in final_cols}
-        df_display.loc[-1] = goals_row
-        df_display.index = df_display.index + 1
-        df_display.sort_index(inplace=True)
-
-        # --- Bottom Row: Totals & Averages (fully typed) ---
+        # --- Totals Row (math-safe) ---
         totals = {
             'Employee': 'TOTALS / AVG',
             'News': float(df_grouped['News'].sum()),
@@ -106,9 +86,9 @@ if uploaded_file is not None:
             'VZPH': float(df_grouped['VZPH'].sum()),
             'Verizon Visa': float(df_grouped['Verizon Visa'].sum())
         }
-        df_display.loc[len(df_display)] = totals
+        df_display = pd.concat([df_display, pd.DataFrame([totals])], ignore_index=True)
 
-        # --- Format Display ---
+        # --- Format Display Columns ---
         def format_currency(val):
             try:
                 return f"${float(val):,.2f}"
@@ -123,10 +103,27 @@ if uploaded_file is not None:
 
         for col in ['GP', 'GP Per Smart']:
             df_display[col] = df_display[col].apply(format_currency)
-
         for col in ['Perks', 'VMP', 'Premium Unlimited']:
             df_display[col] = df_display[col].apply(format_percent)
 
+        # --- GOALS Row (inserted visually) ---
+        goals_row = pd.DataFrame([{
+            'Employee': 'GOALS',
+            'Ratio': 0.5,
+            'Perks': '56%',
+            'VMP': '55%',
+            'GP Per Smart': '$460.00',
+            'SMB GA': 3,
+            'Premium Unlimited': '65%',
+            'VHI/FIOS': 7,
+            'VZPH': 2,
+            'Verizon Visa': 1
+        }])
+
+        # Insert GOALS row at the top
+        df_display = pd.concat([goals_row[final_cols], df_display], ignore_index=True)
+
+        # --- Display ---
         st.success("✅ File processed successfully!")
         st.subheader("📄 Performance Table with Goals & Totals")
         st.dataframe(df_display, use_container_width=True)
