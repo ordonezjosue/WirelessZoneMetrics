@@ -33,7 +33,7 @@ if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
         df.columns = [col.strip() for col in df.columns]
-        st.write("\u2705 Columns loaded:", df.columns.tolist())
+        # st.write("\u2705 Columns loaded:", df.columns.tolist())
 
         if 'SMT Qty' not in df.columns:
             st.error("\u274C The required column 'SMT Qty' was not found in your CSV.")
