@@ -29,30 +29,39 @@ if uploaded_file is not None:
         df = df[df['Employee'].astype(str).str.split().str.len() >= 2]
         df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
 
-        # Normalize name format
+        # Normalize names
         df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
-        # --- Clean Numeric Columns ---
+        # --- Robust Numeric Conversion ---
+        # Convert percentage columns
         percent_cols = ['Perks', 'VMP', 'Premium Unlimited']
         for col in percent_cols:
             df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', ''), errors='coerce')
 
+        # Convert currency columns
         money_cols = ['GP']
         for col in money_cols:
             df[col] = pd.to_numeric(df[col].astype(str).str.replace(r'[\$,]', '', regex=True), errors='coerce')
 
-        qty_cols = ['News', 'Upgrades', 'SMT GA', 'SMB GA', 'SMT QTY', 'VZ VHI GA', 'VZ FIOS GA', 'VZPH', 'Verizon Visa']
+        # Convert quantity/integer columns
+        qty_cols = ['News', 'Upgrades', 'SMT GA', 'SMB GA', 'SMT QTY',
+                    'VZ VHI GA', 'VZ FIOS GA', 'VZPH', 'Verizon Visa']
         for col in qty_cols:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+            else:
+                df[col] = 0  # fill missing columns with 0s
 
         df.fillna(0, inplace=True)
 
         # --- Group and Calculate ---
         df_grouped = df.groupby('Employee', as_index=False).sum()
         df_grouped['Total Boxes'] = df_grouped['News'] + df_grouped['Upgrades']
-        df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0, df_grouped['News'] / df_grouped['Upgrades'], 0).round(2)
-        df_grouped['GP Per Smart'] = np.where(df_grouped['SMT QTY'] != 0, df_grouped['GP'] / df_grouped['SMT QTY'], 0).round(2)
-        df_grouped['VHI/FIOS'] = df_grouped['VZ VHI GA'] + df_grouped['VZ FIOS GA']
+        df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0,
+                                       df_grouped['News'] / df_grouped['Upgrades'], 0).round(2)
+        df_grouped['GP Per Smart'] = np.where(df_grouped['SMT QTY'] != 0,
+                                              df_grouped['GP'] / df_grouped['SMT QTY'], 0).round(2)
+        df_grouped['VHI/FIOS'] = df_grouped.get('VZ VHI GA', 0) + df_grouped.get('VZ FIOS GA', 0)
 
         # --- Reorder Columns ---
         final_cols = [
@@ -125,8 +134,7 @@ if uploaded_file is not None:
 
         # --- Trend Summary ---
         st.subheader("📊 Current Month Trend")
-        st.markdown("This section can be updated weekly with narrative summaries or charts showing progress toward goals.")
+        st.markdown("This section can be updated weekly with narrative summaries or visual charts to track performance.")
 
     except Exception as e:
-        st.error(f"❌ Error: {e}")
-
+        st.error(f"❌ Error while processing file:\n\n{e}")
