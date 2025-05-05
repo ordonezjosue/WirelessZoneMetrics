@@ -33,7 +33,7 @@ if uploaded_file is None:
     st.markdown(
         """
         <div style="text-align: center; margin-top: 20px; margin-bottom: 10px;">
-            <a href="https://your-second-app.streamlit.app" target="_blank">
+            <a href="https://commcalc.streamlit.app/" target="_blank">
                 <button style="font-size:14px; padding:6px 12px; border-radius:4px; background-color:#f0f0f0; color:#000; border:1px solid #ccc;">
                     Developer
                 </button>
