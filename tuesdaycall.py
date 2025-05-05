@@ -4,27 +4,7 @@ import numpy as np
 
 st.set_page_config(page_title="Current Sales Performance", layout="wide")
 
-# --- Dark Theme Styling ---
-st.markdown("""
-    <style>
-        body {
-            background-color: #0e1117;
-            color: #ffffff;
-        }
-        .stApp {
-            background-color: #0e1117;
-            color: #ffffff;
-        }
-        table {
-            color: #ffffff !important;
-            border: 1px solid green !important;
-        }
-        th, td {
-            border: 1px solid green !important;
-            color: #ffffff !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
+
 
 st.title("\U0001F4CA Current Sales Performance Overview")
 uploaded_file = st.file_uploader("\U0001F4C1 Upload your sales CSV file", type=["csv"])
@@ -33,7 +13,7 @@ if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
         df.columns = [col.strip() for col in df.columns]
-        # st.write("\u2705 Columns loaded:", df.columns.tolist())
+        # st.write("✅ Columns loaded:", df.columns.tolist())  # Debugging info commented out
 
         if 'SMT Qty' not in df.columns:
             st.error("\u274C The required column 'SMT Qty' was not found in your CSV.")
