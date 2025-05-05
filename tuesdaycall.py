@@ -4,7 +4,7 @@ import numpy as np
 
 st.set_page_config(page_title="Current Sales Performance", layout="wide")
 
-# --- Dark Theme & Styling ---
+# --- Dark Theme Styling ---
 st.markdown("""
     <style>
         body {
@@ -33,7 +33,13 @@ if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
         df.columns = [col.strip() for col in df.columns]
+        st.write("✅ Columns loaded:", df.columns.tolist())
 
+        if 'SMT QTY' not in df.columns:
+            st.error("❌ The required column 'SMT QTY' was not found in your CSV.")
+            st.stop()
+
+        # Rename necessary columns
         df.rename(columns={
             'Employee Full Name': 'Employee',
             'GA': 'News',
@@ -48,21 +54,17 @@ if uploaded_file is not None:
         df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
         df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
+        # Convert percent and currency values
         for col in ['Perks', 'VMP', 'Premium Unlimited']:
             df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', ''), errors='coerce')
-
         df['GP'] = pd.to_numeric(df['GP'].astype(str).str.replace(r'[\$,]', '', regex=True), errors='coerce')
 
+        # Convert numeric fields
         for col in ['News', 'Upgrades', 'SMT GA', 'SMB GA', 'SMT QTY', 'VZ VHI GA', 'VZ FIOS GA', 'VZPH', 'Verizon Visa']:
             df[col] = pd.to_numeric(df[col], errors='coerce')
-
         df.fillna(0, inplace=True)
+
         df_grouped = df.groupby('Employee', as_index=False).sum()
-
-        # Ensure numeric before sum
-        df_grouped['News'] = pd.to_numeric(df_grouped['News'], errors='coerce').fillna(0)
-        df_grouped['Upgrades'] = pd.to_numeric(df_grouped['Upgrades'], errors='coerce').fillna(0)
-
         df_grouped['Total Boxes'] = df_grouped['News'] + df_grouped['Upgrades']
         df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0, df_grouped['News'] / df_grouped['Upgrades'], 0).round(2)
         df_grouped['GP Per Smart'] = np.where(df_grouped['SMT QTY'] != 0, df_grouped['GP'] / df_grouped['SMT QTY'], 0).round(2)
@@ -95,21 +97,19 @@ if uploaded_file is not None:
         }
         df_display = pd.concat([df_display, pd.DataFrame([totals])], ignore_index=True)
 
-        # Format columns
+        # Format values
         def format_currency(val):
             try: return f"${float(val):,.2f}"
             except: return val
-
         def format_percent(val):
             try: return f"{float(val):.2f}%"
             except: return val
-
         for col in ['GP', 'GP Per Smart']:
             df_display[col] = df_display[col].apply(format_currency)
         for col in ['Perks', 'VMP', 'Premium Unlimited']:
             df_display[col] = df_display[col].apply(format_percent)
 
-        # Goals row
+        # Add Goals row
         goals_row = pd.DataFrame([{
             'Employee': 'GOALS',
             'News': '', 'Upgrades': '', 'Total Boxes': '',
@@ -120,7 +120,7 @@ if uploaded_file is not None:
         }])
         df_display = pd.concat([goals_row[final_cols], df_display], ignore_index=True)
 
-        # Styling
+        # Highlight goals
         def highlight_goals_and_performance(row):
             styles = [''] * len(row)
             if row.name == 0:
@@ -134,15 +134,10 @@ if uploaded_file is not None:
                     return 'color: white; border: 1px solid green;'
 
             column_goal_map = {
-                'Ratio': 0.5,
-                'Perks': 56,
-                'VMP': 55,
-                'GP Per Smart': 460,
-                'SMB GA': 3,
-                'Premium Unlimited': 65,
-                'VHI/FIOS': 7,
-                'VZPH': 2,
-                'Verizon Visa': 1
+                'Ratio': 0.5, 'Perks': 56, 'VMP': 55,
+                'GP Per Smart': 460, 'SMB GA': 3,
+                'Premium Unlimited': 65, 'VHI/FIOS': 7,
+                'VZPH': 2, 'Verizon Visa': 1
             }
             for col, goal in column_goal_map.items():
                 idx = df_display.columns.get_loc(col)
