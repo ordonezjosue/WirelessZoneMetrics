@@ -11,8 +11,6 @@ uploaded_file = st.file_uploader("📁 Upload your sales CSV file", type=["csv"]
 if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
-        st.write("✅ CSV loaded")
-
         df.columns = [col.strip() for col in df.columns]
         df.rename(columns={'SMT Qty': 'SMT QTY'}, inplace=True)
 
@@ -64,6 +62,8 @@ if uploaded_file is not None:
         ]
         df_display = df_grouped[final_cols].copy()
 
+        # --- Totals Row ---
+        total_gp_value = df_grouped['GP'].sum()
         totals = {
             'Employee': 'TOTALS / AVG',
             'News': float(df_grouped['News'].sum()),
@@ -73,8 +73,8 @@ if uploaded_file is not None:
             'SMT GA': float(df_grouped['SMT GA'].sum()),
             'Perks': f"{df_grouped['Perks'].mean():.2f}%",
             'VMP': f"{df_grouped['VMP'].mean():.2f}%",
-            'GP Per Smart': f"${(df_grouped['GP'].sum() / df_grouped['SMT QTY'].sum()):,.2f}" if df_grouped['SMT QTY'].sum() > 0 else "$0.00",
-            'GP': f"${df_grouped['GP'].sum():,.2f}",
+            'GP Per Smart': f"${(total_gp_value / df_grouped['SMT QTY'].sum()):,.2f}" if df_grouped['SMT QTY'].sum() > 0 else "$0.00",
+            'GP': f"${total_gp_value:,.2f}",
             'SMB GA': float(df_grouped['SMB GA'].sum()),
             'Premium Unlimited': f"{df_grouped['Premium Unlimited'].mean():.2f}%",
             'VHI/FIOS': float(df_grouped['VHI/FIOS'].sum()),
@@ -83,6 +83,7 @@ if uploaded_file is not None:
         }
         df_display = pd.concat([df_display, pd.DataFrame([totals])], ignore_index=True)
 
+        # --- Format Display ---
         def format_currency(val):
             try:
                 return f"${float(val):,.2f}"
@@ -100,7 +101,7 @@ if uploaded_file is not None:
         for col in ['Perks', 'VMP', 'Premium Unlimited']:
             df_display[col] = df_display[col].apply(format_percent)
 
-        # ✅ Final Goals Row (complete for all columns)
+        # --- Goals Row (with all matching columns) ---
         goals_row = pd.DataFrame([{
             'Employee': 'GOALS',
             'News': '',
@@ -121,12 +122,18 @@ if uploaded_file is not None:
 
         df_display = pd.concat([goals_row[final_cols], df_display], ignore_index=True)
 
+        # --- Style row 0 (Goals Row) light grey ---
+        def highlight_goals_row(row):
+            return ['background-color: lightgrey' if row.name == 0 else '' for _ in row]
+
+        styled_df = df_display.style.apply(highlight_goals_row, axis=1)
+
         st.success("✅ File processed successfully!")
         st.subheader("📄 Performance Table with Goals & Totals")
-        st.dataframe(df_display, use_container_width=True)
+        st.dataframe(styled_df, use_container_width=True)
 
         st.subheader("📊 Current Month Trend")
-        st.markdown("This section can be updated weekly with narrative summaries or visual charts to track performance.")
+        st.markdown(f"💡 **Trend so far:** `${total_gp_value:,.2f}` in Gross Profit this month.")
 
     except Exception as e:
         st.error(f"❌ Error while processing file:\n\n{e}")
