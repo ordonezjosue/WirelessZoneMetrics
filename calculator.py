@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 import datetime
 
 # --- MUST be the first Streamlit command ---
@@ -22,13 +23,34 @@ def check_password():
 
 check_password()
 
-# --- Only show the calculator after successful authentication ---
+# --- Title ---
 st.title("🧮 Commission Calculator")
 
+# --- CSV Upload ---
+uploaded_file = st.file_uploader("📁 Upload your Power BI CSV file", type=["csv"])
 
+auto_gp = None
+if uploaded_file is not None:
+    try:
+        df = pd.read_csv(uploaded_file)
+        df.columns = [col.strip() for col in df.columns]
+        df['Employee Full Name'] = df['Employee Full Name'].astype(str).str.title().str.strip()
+
+        # Look for Josh OR Josue Ordonez (case-insensitive)
+        or_donez_rows = df[df['Employee Full Name'].str.contains(r'\b(Josue|Josh) Ordonez\b', case=False, na=False, regex=True)]
+
+        if or_donez_rows.empty:
+            st.warning("⚠️ Could not find 'Josh Ordonez' or 'Josue Ordonez' in the uploaded file.")
+        else:
+            auto_gp = or_donez_rows['GP'].astype(str).str.replace(r'[\$,]', '', regex=True).astype(float).sum()
+            st.success(f"✅ Found total GP for Ordonez: **${auto_gp:,.2f}**")
+
+    except Exception as e:
+        st.error(f"❌ Error reading the file:\n{e}")
 
 # --- Input Fields ---
-total_gp = st.text_input("Enter Total GP Earned ($)")
+default_gp = f"{auto_gp:.2f}" if auto_gp is not None else ""
+total_gp = st.text_input("Enter Total GP Earned ($)", value=default_gp)
 deductions_input = st.text_input("Enter Deductions ($)")
 
 if total_gp and deductions_input:
@@ -61,7 +83,7 @@ if total_gp and deductions_input:
         first_friday = first_day + datetime.timedelta(days=days_until_friday)
         second_friday = first_friday + datetime.timedelta(days=7)
 
-        # --- Copy Button ---
+        # --- Copyable Summary ---
         commission_text = f"""Commission Earned: ${commission_earned:,.2f}
 
 Calculation Breakdown:
@@ -75,6 +97,7 @@ Calculation Breakdown:
 Note: Deduction reason - {reason}
 
 📅 Due on second Friday of this month: {second_friday.strftime('%B %d, %Y')}"""
+
         st.code(commission_text, language="text")
         st.button("📋 Copy to Clipboard (Ctrl+C)")
 
