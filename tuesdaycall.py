@@ -6,16 +6,16 @@ import numpy as np
 st.set_page_config(page_title="Current Sales Performance", layout="wide")
 st.title("📊 Current Sales Performance Overview")
 
-# --- File Upload ---
 uploaded_file = st.file_uploader("📁 Upload your sales CSV file", type=["csv"])
 
 if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
+        st.write("✅ CSV loaded")
+
         df.columns = [col.strip() for col in df.columns]
         df.rename(columns={'SMT Qty': 'SMT QTY'}, inplace=True)
 
-        # --- Rename & Filter Columns ---
         df.rename(columns={
             'Employee Full Name': 'Employee',
             'GA': 'News',
@@ -28,10 +28,12 @@ if uploaded_file is not None:
 
         df = df[df['Employee'].astype(str).str.split().str.len() >= 2]
         df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
-
         df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
-        # --- Robust Numeric Conversion ---
+        st.write("✅ Columns after renaming:", df.columns.tolist())
+        st.write("🔍 Sample cleaned row:")
+        st.write(df.head(1))
+
         percent_cols = ['Perks', 'VMP', 'Premium Unlimited']
         for col in percent_cols:
             df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', ''), errors='coerce')
@@ -50,17 +52,21 @@ if uploaded_file is not None:
 
         df.fillna(0, inplace=True)
 
-        # --- Group and Calculate ---
         df_grouped = df.groupby('Employee', as_index=False).sum()
+        st.write("✅ Grouped DataFrame created")
+        st.write(df_grouped.head())
+
         df_grouped['Total Boxes'] = df_grouped['News'] + df_grouped['Upgrades']
         df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0,
                                        df_grouped['News'] / df_grouped['Upgrades'], 0).round(2)
         df_grouped['GP Per Smart'] = np.where(df_grouped['SMT QTY'] != 0,
                                               df_grouped['GP'] / df_grouped['SMT QTY'], 0).round(2)
+
         df_grouped['VHI/FIOS'] = pd.to_numeric(df_grouped.get('VZ VHI GA', 0), errors='coerce').fillna(0) + \
                                  pd.to_numeric(df_grouped.get('VZ FIOS GA', 0), errors='coerce').fillna(0)
 
-        # --- Reorder Columns ---
+        st.write("✅ VHI/FIOS calculated")
+
         final_cols = [
             'Employee', 'News', 'Upgrades', 'Total Boxes', 'Ratio',
             'SMT GA', 'Perks', 'VMP', 'GP Per Smart', 'GP', 'SMB GA',
@@ -68,7 +74,12 @@ if uploaded_file is not None:
         ]
         df_display = df_grouped[final_cols].copy()
 
-        # --- Totals Row (math-safe) ---
+        st.write("✅ Final columns for display set")
+        st.write("🔍 Display sample before adding totals/goals:")
+        st.write(df_display.head())
+
+        # --- Totals Row ---
+        st.write("✅ Creating totals row now...")
         totals = {
             'Employee': 'TOTALS / AVG',
             'News': float(df_grouped['News'].sum()),
@@ -86,6 +97,10 @@ if uploaded_file is not None:
             'VZPH': float(df_grouped['VZPH'].sum()),
             'Verizon Visa': float(df_grouped['Verizon Visa'].sum())
         }
+
+        st.write("✅ Totals row created:")
+        st.write(totals)
+
         df_display = pd.concat([df_display, pd.DataFrame([totals])], ignore_index=True)
 
         # --- Format Display Columns ---
@@ -106,7 +121,8 @@ if uploaded_file is not None:
         for col in ['Perks', 'VMP', 'Premium Unlimited']:
             df_display[col] = df_display[col].apply(format_percent)
 
-        # --- GOALS Row (inserted visually) ---
+        # --- GOALS Row ---
+        st.write("✅ Preparing goals row...")
         goals_row = pd.DataFrame([{
             'Employee': 'GOALS',
             'Ratio': 0.5,
@@ -120,15 +136,12 @@ if uploaded_file is not None:
             'Verizon Visa': 1
         }])
 
-        # Insert GOALS row at the top
         df_display = pd.concat([goals_row[final_cols], df_display], ignore_index=True)
+        st.write("✅ Final display frame ready")
 
-        # --- Display ---
-        st.success("✅ File processed successfully!")
         st.subheader("📄 Performance Table with Goals & Totals")
         st.dataframe(df_display, use_container_width=True)
 
-        # --- Trend Summary ---
         st.subheader("📊 Current Month Trend")
         st.markdown("This section can be updated weekly with narrative summaries or visual charts to track performance.")
 
