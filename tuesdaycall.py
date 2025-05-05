@@ -5,7 +5,7 @@ import numpy as np
 # --- MUST be first Streamlit command ---
 st.set_page_config(page_title="Current Sales Performance", layout="wide")
 
-# --- Global Dark Theme Override ---
+# --- Force Dark Mode Globally + Style Chart Text & Borders ---
 st.markdown("""
     <style>
         body {
@@ -22,6 +22,7 @@ st.markdown("""
         }
         th, td {
             border: 1px solid green !important;
+            color: #ffffff !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -66,10 +67,14 @@ if uploaded_file is not None:
                 df[col] = 0
 
         df.fillna(0, inplace=True)
-        df['News'] = pd.to_numeric(df['News'], errors='coerce')
-        df['Upgrades'] = pd.to_numeric(df['Upgrades'], errors='coerce')
 
         df_grouped = df.groupby('Employee', as_index=False).sum()
+
+        # 🔧 Fix: Force numeric types again after groupby
+        df_grouped['News'] = pd.to_numeric(df_grouped['News'], errors='coerce')
+        df_grouped['Upgrades'] = pd.to_numeric(df_grouped['Upgrades'], errors='coerce')
+        df_grouped.fillna(0, inplace=True)
+
         df_grouped['Total Boxes'] = df_grouped['News'] + df_grouped['Upgrades']
         df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0,
                                        df_grouped['News'] / df_grouped['Upgrades'], 0).round(2)
