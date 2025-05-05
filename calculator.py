@@ -25,13 +25,7 @@ check_password()
 # --- Only show the calculator after successful authentication ---
 st.title("🧮 Commission Calculator")
 
-st.markdown("""
-Enter the required amounts to calculate your commission.
 
-**Formula:**  
-**(Total GP Earned - 18%) × 18% = Commission Subtotal**  
-**(Commission Subtotal + $800 Bonus) - Deductions = Commission Earned**
-""")
 
 # --- Input Fields ---
 total_gp = st.text_input("Enter Total GP Earned ($)")
@@ -68,8 +62,7 @@ if total_gp and deductions_input:
         second_friday = first_friday + datetime.timedelta(days=7)
 
         # --- Copy Button ---
-        commission_text = f"""Commission Subtotal: ${commission_subtotal:,.2f}
-Commission Earned: ${commission_earned:,.2f}
+        commission_text = f"""Commission Earned: ${commission_earned:,.2f}
 
 Calculation Breakdown:
 1. GP Earned = ${gp_generated:,.2f}
@@ -89,4 +82,3 @@ Note: Deduction reason - {reason}
 
     except ValueError:
         st.error("Please enter valid dollar amounts in both fields.")
-
