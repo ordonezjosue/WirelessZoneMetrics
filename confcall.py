@@ -2,6 +2,27 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+import streamlit as st
+
+# --- Simple Password Protection ---
+def check_password():
+    def password_entered():
+        if st.session_state["password"] == st.secrets["app_password"]:
+            st.session_state["authenticated"] = True
+            del st.session_state["Elypse2020"]  # Clean up
+        else:
+            st.session_state["authenticated"] = False
+
+    if "authenticated" not in st.session_state:
+        st.text_input("🔐 Enter password to access this app:", type="password", on_change=password_entered, key="password")
+        st.stop()
+    elif not st.session_state["authenticated"]:
+        st.error("❌ Incorrect password")
+        st.stop()
+
+check_password()  # 👈 Call it before the rest of the app
+
+
 # --- Page Configuration ---
 st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
 st.title("📊 Sales Performance Commissions/Results")
