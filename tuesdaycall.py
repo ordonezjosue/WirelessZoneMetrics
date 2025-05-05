@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import datetime
 
 st.set_page_config(page_title="Current Sales Performance", layout="wide")
-
-
 
 st.title("📊 Current Sales Performance Overview")
 st.markdown("""
@@ -20,13 +19,13 @@ st.markdown("""
 8. Download and save the CSV file
 9. Upload it below ⬇️
 """)
+
 uploaded_file = st.file_uploader("\U0001F4C1 Upload your sales CSV file", type=["csv"])
 
 if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
         df.columns = [col.strip() for col in df.columns]
-        # st.write("✅ Columns loaded:", df.columns.tolist())  # Debugging info commented out
 
         if 'SMT Qty' not in df.columns:
             st.error("\u274C The required column 'SMT Qty' was not found in your CSV.")
@@ -46,7 +45,6 @@ if uploaded_file is not None:
         df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
         df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
-        # Ensure all needed columns are numeric
         numeric_cols = ['Perks', 'VMP', 'Premium Unlimited', 'GP', 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'SMT Qty', 'VZ VHI GA', 'VZ FIOS GA', 'VZPH', 'Verizon Visa']
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', '').str.replace('$', '').str.replace(',', ''), errors='coerce')
@@ -67,6 +65,12 @@ if uploaded_file is not None:
         df_display = df_grouped[final_cols].copy()
 
         total_gp_value = df_grouped['GP'].sum()
+        current_day = datetime.datetime.now().day
+        today = datetime.datetime.now()
+        last_day_of_month = (today.replace(day=28) + datetime.timedelta(days=4)).replace(day=1) - datetime.timedelta(days=1)
+        days_in_month = last_day_of_month.day
+        projected_gp = (total_gp_value / current_day) * days_in_month if current_day > 0 else total_gp_value
+
         totals = {
             'Employee': 'TOTALS / AVG',
             'News': df_grouped['News'].sum(),
@@ -92,6 +96,7 @@ if uploaded_file is not None:
 
         st.subheader("\U0001F4CA Current Month Trend")
         st.markdown(f"\U0001F4A1 **Trend so far:** `${total_gp_value:,.2f}` in Gross Profit this month.")
+        st.markdown(f"📈 **Projected Total:** `${projected_gp:,.2f}` by end of month based on current pace.")
 
     except Exception as e:
         st.error(f"\u274C Error while processing file:\n\n{e}")
