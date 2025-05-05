@@ -46,7 +46,19 @@ if uploaded_file is not None:
 
         df.fillna(0, inplace=True)
 
+        # --- DEBUG: Force numeric again for safety ---
+        df['News'] = pd.to_numeric(df['News'], errors='coerce')
+        df['Upgrades'] = pd.to_numeric(df['Upgrades'], errors='coerce')
+
         df_grouped = df.groupby('Employee', as_index=False).sum()
+
+        # --- DEBUG Check types ---
+        st.write("✅ Data types before summing News + Upgrades:")
+        st.write("News type:", df_grouped['News'].dtype)
+        st.write("Upgrades type:", df_grouped['Upgrades'].dtype)
+        st.write("News sample:", df_grouped['News'].head())
+        st.write("Upgrades sample:", df_grouped['Upgrades'].head())
+
         df_grouped['Total Boxes'] = df_grouped['News'] + df_grouped['Upgrades']
         df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0,
                                        df_grouped['News'] / df_grouped['Upgrades'], 0).round(2)
@@ -62,7 +74,7 @@ if uploaded_file is not None:
         ]
         df_display = df_grouped[final_cols].copy()
 
-        # --- Totals Row ---
+        # --- Totals ---
         total_gp_value = df_grouped['GP'].sum()
         totals = {
             'Employee': 'TOTALS / AVG',
@@ -83,7 +95,7 @@ if uploaded_file is not None:
         }
         df_display = pd.concat([df_display, pd.DataFrame([totals])], ignore_index=True)
 
-        # --- Format Display ---
+        # --- Formatting ---
         def format_currency(val):
             try:
                 return f"${float(val):,.2f}"
@@ -101,7 +113,7 @@ if uploaded_file is not None:
         for col in ['Perks', 'VMP', 'Premium Unlimited']:
             df_display[col] = df_display[col].apply(format_percent)
 
-        # --- Goals Row (with all matching columns) ---
+        # --- Goals Row ---
         goals_row = pd.DataFrame([{
             'Employee': 'GOALS',
             'News': '',
@@ -119,10 +131,9 @@ if uploaded_file is not None:
             'VZPH': 2,
             'Verizon Visa': 1
         }])
-
         df_display = pd.concat([goals_row[final_cols], df_display], ignore_index=True)
 
-        # --- Style row 0 (Goals Row) light grey ---
+        # --- Shade Goals Row ---
         def highlight_goals_row(row):
             return ['background-color: lightgrey' if row.name == 0 else '' for _ in row]
 
