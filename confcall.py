@@ -2,15 +2,11 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-import streamlit as st
-
-# --- Simple Password Protection ---
 # --- Simple Password Protection ---
 def check_password():
     def password_entered():
         if st.session_state["password"] == st.secrets["app_password"]:
             st.session_state["authenticated"] = True
-            # optional cleanup
             if "password" in st.session_state:
                 del st.session_state["password"]
         else:
@@ -23,9 +19,7 @@ def check_password():
         st.error("❌ Incorrect password")
         st.stop()
 
-check_password()  # 👈 Call it before everything else
-
-
+check_password()
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
@@ -78,10 +72,8 @@ if uploaded_file is not None:
 
             df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
-            # Store full dataset for preview
             df_display_all = df.copy()
 
-            # Exclude Josh and Wiguen from commissions
             df = df[~df['Employee'].str.lower().isin(['josh ordonez', 'thimotee wiguen'])]
 
             for col in ['Premium Unlim (%)', 'VMP', 'VZ Perks Rate (%)']:
@@ -119,7 +111,6 @@ if uploaded_file is not None:
             for col in ['Ratio', 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'Total GA', 'VZ VHI GA', 'VZ FIOS GA']:
                 df_display_all_display[col] = df_display_all[col].round(2)
 
-            # Add Total Row
             total_row = {
                 'Employee': 'TOTAL',
                 'News': df_display_all['News'].sum().round(2),
@@ -143,7 +134,6 @@ if uploaded_file is not None:
             st.subheader("📄 Preview of Cleaned & Highlighted Data")
             st.dataframe(df_display_all_display, use_container_width=True)
 
-            # --- Commission Table ---
             st.divider()
             st.subheader("📈 Commission Calculator Based on Point System")
 
@@ -189,21 +179,19 @@ if uploaded_file is not None:
                 'Points', 'Commission %', 'Commission Earned'
             ]], use_container_width=True)
 
-    # --- Link to another Streamlit app (centered button) ---
-st.markdown(
-    """
-    <div style="display: flex; justify-content: center; margin-top: 50px;">
-        <a href="https://your-second-app.streamlit.app" target="_blank">
-            <button style="font-size:18px; padding:10px 20px; border-radius:10px; background-color:#4CAF50; color:white; border:none;">
-                🚀 Open Sales Performance App
-            </button>
-        </a>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-           
     except Exception as e:
         st.error(f"❌ An error occurred while processing the file:\n{e}")
+
+    # --- Link to another Streamlit app (centered button) ---
+    st.markdown(
+        """
+        <div style="display: flex; justify-content: center; margin-top: 50px;">
+            <a href="https://your-second-app.streamlit.app" target="_blank">
+                <button style="font-size:18px; padding:10px 20px; border-radius:10px; background-color:#4CAF50; color:white; border:none;">
+                    🚀 Open Sales Performance App
+                </button>
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
