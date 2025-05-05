@@ -26,22 +26,8 @@ st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
 st.title("📊 Sales Performance Commissions/Results")
 st.markdown("Upload your sales CSV and extract a clean, styled summary with point-based commission insights.")
 
-# --- Developer Button (shows only before file upload) ---
+# --- File Upload ---
 uploaded_file = st.file_uploader("📁 Upload your sales CSV file", type=["csv"])
-
-if uploaded_file is None:
-    st.markdown(
-        """
-        <div style="text-align: center; margin-top: 20px; margin-bottom: 10px;">
-            <a href="https://commcalc.streamlit.app/" target="_blank">
-                <button style="font-size:14px; padding:6px 12px; border-radius:4px; background-color:#f0f0f0; color:#000; border:1px solid #ccc;">
-                    Developer
-                </button>
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
 
 # --- Power BI Instructions ---
 st.markdown("""
@@ -196,3 +182,25 @@ if uploaded_file is not None:
 
     except Exception as e:
         st.error(f"❌ An error occurred while processing the file:\n{e}")
+
+# --- Persistent Internal Login Button at Bottom Left ---
+st.markdown(
+    """
+    <style>
+    .fixed-button {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        z-index: 100;
+    }
+    </style>
+    <div class="fixed-button">
+        <a href="https://commcalc.streamlit.app/" target="_blank">
+            <button style="font-size:14px; padding:8px 16px; border-radius:6px; background-color:#e0e0e0; color:#000; border:1px solid #999;">
+                Internal Login
+            </button>
+        </a>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
