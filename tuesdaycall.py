@@ -29,7 +29,6 @@ if uploaded_file is not None:
         df = df[df['Employee'].astype(str).str.split().str.len() >= 2]
         df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
 
-        # Normalize names
         df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
         # --- Robust Numeric Conversion ---
@@ -47,7 +46,7 @@ if uploaded_file is not None:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
             else:
-                df[col] = 0  # fill missing columns with 0s
+                df[col] = 0
 
         df.fillna(0, inplace=True)
 
@@ -89,23 +88,23 @@ if uploaded_file is not None:
         df_display.index = df_display.index + 1
         df_display.sort_index(inplace=True)
 
-        # --- Bottom Row: Totals & Averages ---
+        # --- Bottom Row: Totals & Averages (fully typed) ---
         totals = {
             'Employee': 'TOTALS / AVG',
-            'News': df_grouped['News'].sum(),
-            'Upgrades': df_grouped['Upgrades'].sum(),
-            'Total Boxes': df_grouped['Total Boxes'].sum(),
-            'Ratio': df_grouped['Ratio'].mean().round(2),
-            'SMT GA': df_grouped['SMT GA'].sum(),
+            'News': float(df_grouped['News'].sum()),
+            'Upgrades': float(df_grouped['Upgrades'].sum()),
+            'Total Boxes': float(df_grouped['Total Boxes'].sum()),
+            'Ratio': round(df_grouped['Ratio'].mean(), 2),
+            'SMT GA': float(df_grouped['SMT GA'].sum()),
             'Perks': f"{df_grouped['Perks'].mean():.2f}%",
             'VMP': f"{df_grouped['VMP'].mean():.2f}%",
             'GP Per Smart': f"${(df_grouped['GP'].sum() / df_grouped['SMT QTY'].sum()):,.2f}" if df_grouped['SMT QTY'].sum() > 0 else "$0.00",
             'GP': f"${df_grouped['GP'].sum():,.2f}",
-            'SMB GA': df_grouped['SMB GA'].sum(),
+            'SMB GA': float(df_grouped['SMB GA'].sum()),
             'Premium Unlimited': f"{df_grouped['Premium Unlimited'].mean():.2f}%",
-            'VHI/FIOS': df_grouped['VHI/FIOS'].sum(),
-            'VZPH': df_grouped['VZPH'].sum(),
-            'Verizon Visa': df_grouped['Verizon Visa'].sum()
+            'VHI/FIOS': float(df_grouped['VHI/FIOS'].sum()),
+            'VZPH': float(df_grouped['VZPH'].sum()),
+            'Verizon Visa': float(df_grouped['Verizon Visa'].sum())
         }
         df_display.loc[len(df_display)] = totals
 
