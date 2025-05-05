@@ -53,19 +53,18 @@ if uploaded_file is not None:
         df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
         df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
-        for col in ['Perks', 'VMP', 'Premium Unlimited']:
-            df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', ''), errors='coerce')
-        df['GP'] = pd.to_numeric(df['GP'].astype(str).str.replace(r'[\$,]', '', regex=True), errors='coerce')
-
-        for col in ['News', 'Upgrades', 'SMT GA', 'SMB GA', 'SMT Qty', 'VZ VHI GA', 'VZ FIOS GA', 'VZPH', 'Verizon Visa']:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+        # Ensure all needed columns are numeric
+        numeric_cols = ['Perks', 'VMP', 'Premium Unlimited', 'GP', 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'SMT Qty', 'VZ VHI GA', 'VZ FIOS GA', 'VZPH', 'Verizon Visa']
+        for col in numeric_cols:
+            df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', '').str.replace('$', '').str.replace(',', ''), errors='coerce')
 
         df.fillna(0, inplace=True)
-        df_grouped = df.groupby('Employee', as_index=False).sum()
+
+        df_grouped = df.groupby('Employee', as_index=False)[numeric_cols].sum()
         df_grouped['Total Boxes'] = df_grouped['News'] + df_grouped['Upgrades']
         df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0, df_grouped['News'] / df_grouped['Upgrades'], 0).round(2)
         df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0).round(2)
-        df_grouped['VHI/FIOS'] = df_grouped.get('VZ VHI GA', 0) + df_grouped.get('VZ FIOS GA', 0)
+        df_grouped['VHI/FIOS'] = df_grouped['VZ VHI GA'] + df_grouped['VZ FIOS GA']
 
         final_cols = [
             'Employee', 'News', 'Upgrades', 'Total Boxes', 'Ratio', 'SMT GA',
