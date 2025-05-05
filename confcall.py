@@ -5,11 +5,14 @@ import numpy as np
 import streamlit as st
 
 # --- Simple Password Protection ---
+# --- Simple Password Protection ---
 def check_password():
     def password_entered():
         if st.session_state["password"] == st.secrets["app_password"]:
             st.session_state["authenticated"] = True
-            del st.session_state["Elypse2020"]  # Clean up
+            # optional cleanup
+            if "password" in st.session_state:
+                del st.session_state["password"]
         else:
             st.session_state["authenticated"] = False
 
@@ -20,7 +23,8 @@ def check_password():
         st.error("❌ Incorrect password")
         st.stop()
 
-check_password()  # 👈 Call it before the rest of the app
+check_password()  # 👈 Call it before everything else
+
 
 
 # --- Page Configuration ---
