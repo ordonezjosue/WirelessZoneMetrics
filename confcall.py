@@ -189,6 +189,21 @@ if uploaded_file is not None:
                 'Points', 'Commission %', 'Commission Earned'
             ]], use_container_width=True)
 
+    # --- Link to another Streamlit app (centered button) ---
+st.markdown(
+    """
+    <div style="display: flex; justify-content: center; margin-top: 50px;">
+        <a href="https://your-second-app.streamlit.app" target="_blank">
+            <button style="font-size:18px; padding:10px 20px; border-radius:10px; background-color:#4CAF50; color:white; border:none;">
+                🚀 Open Sales Performance App
+            </button>
+        </a>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
            
     except Exception as e:
         st.error(f"❌ An error occurred while processing the file:\n{e}")
