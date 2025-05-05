@@ -6,7 +6,20 @@ st.set_page_config(page_title="Current Sales Performance", layout="wide")
 
 
 
-st.title("\U0001F4CA Current Sales Performance Overview")
+st.title("📊 Current Sales Performance Overview")
+st.markdown("""
+### 🗂️ How to Export Your Sales CSV from Power BI
+
+1. Open **Power BI**
+2. Navigate to the **WZ Sales Analysis** dashboard
+3. Scroll to the bottom and click **KPI Details**
+4. At the top, select the **Employee** view
+5. Click the **three dots (⋯)** in the upper-right of the chart
+6. Choose **Export Data**
+7. Set **Data format** to `Summarized data` and file type to `.CSV`
+8. Download and save the CSV file
+9. Upload it below ⬇️
+""")
 uploaded_file = st.file_uploader("\U0001F4C1 Upload your sales CSV file", type=["csv"])
 
 if uploaded_file is not None:
