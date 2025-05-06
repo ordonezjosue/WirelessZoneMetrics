@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+# --- MUST BE FIRST Streamlit command ---
+st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
+
 # --- Simple Password Protection ---
 def check_password():
     # --- Password Introduction Message ---
@@ -35,8 +38,7 @@ def check_password():
 
 check_password()
 
-# --- Page Configuration ---
-st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
+# --- Page Title ---
 st.title("📊 Sales Performance Commissions/Results")
 st.markdown("Upload your sales CSV and extract a clean, styled summary with point-based commission insights.")
 
