@@ -96,7 +96,7 @@ if uploaded_file is not None:
         st.dataframe(df_display, use_container_width=True)
 
         st.subheader("\U0001F4CA Current Month Trend")
-        st.markdown(f"💰 **Daily GP Average:** `${average_daily_gp:,.2f}` per day over the past {current_day} days.")
+        st.markdown(f"💰 **Daily GP Average:** `${average_daily_gp:,.2f}` per day over the first {current_day} days of the month.")
         st.markdown(f"📈 **Projected Total:** `${projected_gp:,.2f}` by end of month based on current pace.")
 
     except Exception as e:
