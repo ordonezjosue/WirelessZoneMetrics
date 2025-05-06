@@ -4,6 +4,20 @@ import numpy as np
 
 # --- Simple Password Protection ---
 def check_password():
+    # --- Password Introduction Message ---
+    st.markdown("""
+        ## 🔐 Elypse Systems and Solutions
+        Welcome to the **Sales Performance Extractor Tool**.
+
+        This tool allows you to upload monthly sales CSV data and receive:
+        - A clean, styled summary of key performance metrics
+        - Automated commission scorecards based on our internal point system
+        - Trend insights and GP breakdowns for all employees
+
+        **Please enter the same password we use for Google Drive.**  
+        This is to ensure that **company performance data is protected** and only visible to internal team members.
+    """)
+
     def password_entered():
         if st.session_state["password"] == st.secrets["app_password"]:
             st.session_state["authenticated"] = True
@@ -13,7 +27,7 @@ def check_password():
             st.session_state["authenticated"] = False
 
     if "authenticated" not in st.session_state:
-        st.text_input("\U0001f512 Enter password to access this app:", type="password", on_change=password_entered, key="password")
+        st.text_input("🔑 Enter password to access this app:", type="password", on_change=password_entered, key="password")
         st.stop()
     elif not st.session_state["authenticated"]:
         st.error("❌ Incorrect password")
