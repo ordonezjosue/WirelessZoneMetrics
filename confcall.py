@@ -24,7 +24,7 @@ def check_password():
     def password_entered():
         if st.session_state["password"] == st.secrets["app_password"]:
             st.session_state["authenticated"] = True
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.session_state["authenticated"] = False
 
