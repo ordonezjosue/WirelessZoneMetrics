@@ -24,8 +24,7 @@ def check_password():
     def password_entered():
         if st.session_state["password"] == st.secrets["app_password"]:
             st.session_state["authenticated"] = True
-            if "password" in st.session_state:
-                del st.session_state["password"]
+            st.experimental_rerun()
         else:
             st.session_state["authenticated"] = False
 
@@ -90,7 +89,6 @@ if uploaded_file is not None:
             df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
             df_display_all = df.copy()
-
             df = df[~df['Employee'].str.lower().isin(['josh ordonez', 'thimotee wiguen'])]
 
             for col in ['Premium Unlim (%)', 'VMP', 'VZ Perks Rate (%)']:
