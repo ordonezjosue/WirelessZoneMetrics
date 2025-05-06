@@ -70,6 +70,7 @@ if uploaded_file is not None:
         last_day_of_month = (today.replace(day=28) + datetime.timedelta(days=4)).replace(day=1) - datetime.timedelta(days=1)
         days_in_month = last_day_of_month.day
         projected_gp = (total_gp_value / current_day) * days_in_month if current_day > 0 else total_gp_value
+        average_daily_gp = total_gp_value / current_day if current_day > 0 else 0
 
         totals = {
             'Employee': 'TOTALS / AVG',
@@ -95,7 +96,7 @@ if uploaded_file is not None:
         st.dataframe(df_display, use_container_width=True)
 
         st.subheader("\U0001F4CA Current Month Trend")
-        st.markdown(f"\U0001F4A1 **Trend so far:** `${total_gp_value:,.2f}` in Gross Profit this month.")
+        st.markdown(f"💰 **Daily GP Average:** `${average_daily_gp:,.2f}` per day over the past {current_day} days.")
         st.markdown(f"📈 **Projected Total:** `${projected_gp:,.2f}` by end of month based on current pace.")
 
     except Exception as e:
