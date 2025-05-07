@@ -5,6 +5,70 @@ import numpy as np
 # --- MUST BE FIRST Streamlit command ---
 st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
 
+# --- Custom CSS for Color Scheme ---
+st.markdown("""
+    <style>
+        .header-container {
+            display: flex;
+            align-items: center;
+            background-color: #003366;
+            padding: 15px;
+            border-radius: 10px;
+            color: #FFFFFF;
+        }
+        .header-container img {
+            height: 60px;
+            margin-right: 20px;
+        }
+        .header-container h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .header-container p {
+            margin: 5px 0 0;
+            font-size: 14px;
+            color: #B0C4DE;
+        }
+        .stButton>button {
+            background-color: #0073e6;
+            color: #FFFFFF;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+        .stButton>button:hover {
+            background-color: #005bb5;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- Header Section with Logo ---
+st.markdown("""
+    <div class="header-container">
+        <img src="elypse_logo.png" alt="Elypse Systems Logo">
+        <div>
+            <h1>Sales Performance Extractor</h1>
+            <p>Analyze sales data and calculate commissions effortlessly</p>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
+
+# --- Persistent Internal Login Button ---
+st.markdown("""
+    <div class="fixed-button">
+        <a href="https://commcalc.streamlit.app/" target="_blank">
+            <button style="font-size:14px; padding:8px 16px; border-radius:6px; background-color:#0073e6; color:#FFFFFF; border:none;">
+                Internal Login
+            </button>
+        </a>
+    </div>
+""", unsafe_allow_html=True)
+
+# --- Divider ---
+st.divider()
+
+
 # --- Password Protection ---
 def check_password():
     if "authenticated" not in st.session_state:
