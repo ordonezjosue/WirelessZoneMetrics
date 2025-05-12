@@ -51,7 +51,23 @@ if uploaded_file is not None:
 
         df.fillna(0, inplace=True)
 
-        df_grouped = df.groupby('Employee', as_index=False)[numeric_cols].sum()
+        # Grouping and Aggregation
+        df_grouped = df.groupby('Employee', as_index=False).agg({
+            'News': 'sum',
+            'Upgrades': 'sum',
+            'SMT GA': 'sum',
+            'Perks': 'mean',  # Mean instead of sum
+            'VMP': 'mean',    # Corrected to average instead of sum
+            'GP': 'sum',
+            'SMB GA': 'sum',
+            'Premium Unlimited': 'mean',
+            'VZ VHI GA': 'sum',
+            'VZ FIOS GA': 'sum',
+            'VZPH': 'sum',
+            'Verizon Visa': 'sum',
+            'SMT Qty': 'sum'
+        })
+
         df_grouped['Total Boxes'] = df_grouped['News'] + df_grouped['Upgrades']
         df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0, df_grouped['News'] / df_grouped['Upgrades'], 0).round(2)
         df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0).round(2)
@@ -64,40 +80,9 @@ if uploaded_file is not None:
         ]
         df_display = df_grouped[final_cols].copy()
 
-        total_gp_value = df_grouped['GP'].sum()
-        current_day = datetime.datetime.now().day
-        today = datetime.datetime.now()
-        last_day_of_month = (today.replace(day=28) + datetime.timedelta(days=4)).replace(day=1) - datetime.timedelta(days=1)
-        days_in_month = last_day_of_month.day
-        projected_gp = (total_gp_value / current_day) * days_in_month if current_day > 0 else total_gp_value
-        average_daily_gp = total_gp_value / current_day if current_day > 0 else 0
-
-        totals = {
-            'Employee': 'TOTALS / AVG',
-            'News': df_grouped['News'].sum(),
-            'Upgrades': df_grouped['Upgrades'].sum(),
-            'Total Boxes': df_grouped['Total Boxes'].sum(),
-            'Ratio': round(df_grouped['Ratio'].mean(), 2),
-            'SMT GA': df_grouped['SMT GA'].sum(),
-            'Perks': f"{df_grouped['Perks'].mean():.2f}%",
-            'VMP': f"{df_grouped['VMP'].mean():.2f}%",
-            'GP Per Smart': f"${(total_gp_value / df_grouped['SMT Qty'].sum()):,.2f}" if df_grouped['SMT Qty'].sum() > 0 else "$0.00",
-            'GP': f"${total_gp_value:,.2f}",
-            'SMB GA': df_grouped['SMB GA'].sum(),
-            'Premium Unlimited': f"{df_grouped['Premium Unlimited'].mean():.2f}%",
-            'VHI/FIOS': df_grouped['VHI/FIOS'].sum(),
-            'VZPH': df_grouped['VZPH'].sum(),
-            'Verizon Visa': df_grouped['Verizon Visa'].sum()
-        }
-        df_display = pd.concat([df_display, pd.DataFrame([totals])], ignore_index=True)
-
         st.success("\u2705 File processed successfully!")
         st.subheader("\U0001F4C4 Performance Table with Goals & Totals")
         st.dataframe(df_display, use_container_width=True)
-
-        st.subheader("\U0001F4CA Current Month Trend")
-        st.markdown(f"💰 **Daily GP Average:** `${average_daily_gp:,.2f}` per day over the first {current_day} days of the month.")
-        st.markdown(f"📈 **Projected Total:** `${projected_gp:,.2f}` by end of month based on current pace.")
 
     except Exception as e:
         st.error(f"\u274C Error while processing file:\n\n{e}")
