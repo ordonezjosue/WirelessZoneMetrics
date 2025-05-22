@@ -146,9 +146,10 @@ if uploaded_file is not None:
         daily_avg_gp = total_gp / num_days if num_days > 0 else 0
 
         st.markdown(f"""
-        ### \U0001F4C8 Current Month Trend Summary
+        ### 📈 Current Month Trend Summary
         - 💰 **Total Monthly GP:** ${total_gp:,.2f}
         - 📅 **Average Daily GP:** ${daily_avg_gp:,.2f} (based on {num_days} days)
+        - 📈 **Projected Month-End GP:** ${daily_avg_gp * end_date.replace(day=28).replace(day=31 if (end_date.replace(day=28) + pd.Timedelta(days=4)).day < 4 else (end_date.replace(day=28) + pd.Timedelta(days=4)).day):,.2f} (based on {end_date.strftime('%B')} {end_date.year})
         """)
 
         csv = df_final.to_csv(index=False).encode('utf-8')
