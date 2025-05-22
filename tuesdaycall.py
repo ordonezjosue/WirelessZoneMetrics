@@ -136,12 +136,15 @@ if uploaded_file is not None:
         st.subheader("📄 Performance Table with Goals & Totals")
         st.dataframe(df_final, use_container_width=True)
 
-        # Trend summary
+        # Total GP & Daily Average Summary
+        total_gp = df_grouped['GP'].sum()
+        num_days = 20  # Manually defined for now
+        daily_avg_gp = total_gp / num_days
+
         st.markdown(f"""
         ### 📈 Current Month Trend Summary
-        - 📌 **Average Ratio:** {summary_row['Ratio'].values[0]:.2f}
-        - 💰 **Average GP Per Smart:** ${summary_row['GP Per Smart'].values[0]:.2f}
-        - 📦 **Average Total Boxes:** {summary_row['Total Boxes'].values[0]:.1f}
+        - 💰 **Total Monthly GP:** ${total_gp:,.2f}
+        - 📅 **Average Daily GP:** ${daily_avg_gp:,.2f} (based on {num_days} days)
         """)
 
     except Exception as e:
