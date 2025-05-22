@@ -149,7 +149,7 @@ if uploaded_file is not None:
 num_days_in_month = monthrange(end_date.year, end_date.month)[1]
 projected_gp = daily_avg_gp * num_days_in_month
 
-st.markdown(f"""
+        st.markdown(f"""
         ### 📈 Current Month Trend Summary
         - 💰 **Total Monthly GP:** ${total_gp:,.2f}
         - 📅 **Average Daily GP:** ${daily_avg_gp:,.2f} (based on {num_days} days)
