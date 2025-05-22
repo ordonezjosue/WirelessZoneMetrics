@@ -115,6 +115,11 @@ if uploaded_file is not None:
 
         df_final = pd.concat([df_grouped, summary_row], ignore_index=True)
 
+        # Round all numeric columns to 2 decimals (except Employee column)
+        for col in df_final.columns:
+            if col != 'Employee' and df_final[col].dtype in [np.float64, np.float32, np.int64, np.int32]:
+                df_final[col] = df_final[col].round(2)
+
         df_final['GP'] = df_final['GP'].apply(lambda x: f"${x:,.2f}" if isinstance(x, (int, float)) else x)
         df_final['GP Per Smart'] = df_final['GP Per Smart'].apply(lambda x: f"${x:,.2f}" if isinstance(x, (int, float)) else x)
 
