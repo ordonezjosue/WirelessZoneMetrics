@@ -140,7 +140,24 @@ if uploaded_file is not None:
         """, unsafe_allow_html=True)
 
         st.subheader("\U0001F4C4 Performance Table with Goals & Totals")
-        st.dataframe(df_final, use_container_width=True)
+                display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'SMT GA', 'Perks', 'VMP', 'GP Per Smart', 'GP', 'SMB GA', 'Premium Unlimited', 'VZPH', 'VHI/FIOS', 'Verizon Visa']
+        df_final = df_final[display_columns]
+                def highlight_goals(val, col):
+            if col == 'Ratio': return 'background-color: #d4edda' if val >= 0.5 else 'background-color: #f8d7da'
+            if col == 'SMT GA': return 'background-color: #d4edda' if val >= 30 else 'background-color: #f8d7da'
+            if col == 'Perks': return 'background-color: #d4edda' if val >= 56 else 'background-color: #f8d7da'
+            if col == 'VMP': return 'background-color: #d4edda' if val >= 55 else 'background-color: #f8d7da'
+            if col == 'GP Per Smart':
+                try:
+                    v = float(val.replace('$', '').replace(',', ''))
+                    return 'background-color: #d4edda' if v >= 460 else 'background-color: #f8d7da'
+                except: return ''
+            if col == 'SMB GA': return 'background-color: #d4edda' if val >= 3 else 'background-color: #f8d7da'
+            if col == 'Premium Unlimited': return 'background-color: #d4edda' if val >= 65 else 'background-color: #f8d7da'
+            return ''
+
+        styled_df = df_final.style.apply(lambda row: [highlight_goals(v, col) for col, v in row.items()], axis=1)
+        st.dataframe(styled_df, use_container_width=True)
 
         total_gp = df_grouped['GP'].sum()
         daily_avg_gp = total_gp / num_days if num_days > 0 else 0
