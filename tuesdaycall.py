@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from io import BytesIO
 from datetime import date
+from calendar import monthrange
 
 st.set_page_config(page_title="Current Sales Performance", layout="wide")
 
@@ -95,7 +96,6 @@ if uploaded_file is not None:
             except Exception as rq_error:
                 st.warning(f"⚠️ RQ File error: {rq_error}")
 
-        # Calculate totals and averages
         summary_row = pd.DataFrame({
             'Employee': ['Total/Average'],
             'News': [df_grouped['News'].sum()],
@@ -115,11 +115,9 @@ if uploaded_file is not None:
 
         df_final = pd.concat([df_grouped, summary_row], ignore_index=True)
 
-        # Format dollar columns
         df_final['GP'] = df_final['GP'].apply(lambda x: f"${x:,.2f}" if isinstance(x, (int, float)) else x)
         df_final['GP Per Smart'] = df_final['GP Per Smart'].apply(lambda x: f"${x:,.2f}" if isinstance(x, (int, float)) else x)
 
-        # Remove unwanted columns
         drop_cols = ['SMT Qty', 'Total Boxes', 'VZ VHI GA', 'VZ FIOS GA']
         df_final.drop(columns=[col for col in drop_cols if col in df_final.columns], inplace=True)
 
@@ -140,11 +138,11 @@ if uploaded_file is not None:
         """, unsafe_allow_html=True)
 
         st.subheader("📄 Performance Table with Goals & Totals")
-        display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'SMT GA', 'Perks', 'VMP', 'GP Per Smart', 'GP', 'SMB GA', 'Premium Unlimited', 'VZPH', 'VHI/FIOS', 'Verizon Visa']
 
-                display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'SMT GA', 'Perks', 'VMP', 'GP Per Smart', 'GP', 'SMB GA', 'Premium Unlimited', 'VZPH', 'VHI/FIOS', 'Verizon Visa']
+        display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'SMT GA', 'Perks', 'VMP', 'GP Per Smart', 'GP', 'SMB GA', 'Premium Unlimited', 'VZPH', 'VHI/FIOS', 'Verizon Visa']
         df_final = df_final[display_columns]
-                def highlight_goals(val, col):
+
+        def highlight_goals(val, col):
             if col == 'Ratio': return 'background-color: #d4edda' if val >= 0.5 else 'background-color: #f8d7da'
             if col == 'SMT GA': return 'background-color: #d4edda' if val >= 30 else 'background-color: #f8d7da'
             if col == 'Perks': return 'background-color: #d4edda' if val >= 56 else 'background-color: #f8d7da'
@@ -163,9 +161,6 @@ if uploaded_file is not None:
 
         total_gp = df_grouped['GP'].sum()
         daily_avg_gp = total_gp / num_days if num_days > 0 else 0
-
-        from calendar import monthrange
-
         num_days_in_month = monthrange(end_date.year, end_date.month)[1]
         projected_gp = daily_avg_gp * num_days_in_month
 
