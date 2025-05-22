@@ -139,7 +139,9 @@ if uploaded_file is not None:
         </div>
         """, unsafe_allow_html=True)
 
-        st.subheader("\U0001F4C4 Performance Table with Goals & Totals")
+        st.subheader("📄 Performance Table with Goals & Totals")
+        display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'SMT GA', 'Perks', 'VMP', 'GP Per Smart', 'GP', 'SMB GA', 'Premium Unlimited', 'VZPH', 'VHI/FIOS', 'Verizon Visa']
+
                 display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'SMT GA', 'Perks', 'VMP', 'GP Per Smart', 'GP', 'SMB GA', 'Premium Unlimited', 'VZPH', 'VHI/FIOS', 'Verizon Visa']
         df_final = df_final[display_columns]
                 def highlight_goals(val, col):
