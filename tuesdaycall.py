@@ -161,7 +161,21 @@ if uploaded_file is not None:
             if col == 'Premium Unlimited': return 'background-color: #d4edda' if val >= 65 else 'background-color: #f8d7da'
             return ''
 
-        styled_df = df_final.style.apply(lambda row: [highlight_goals(v, col) for col, v in row.items()], axis=1)
+        styled_df = df_final.style \
+            .format({
+                'Ratio': '{:.2f}',
+                'SMT GA': '{:.2f}',
+                'Perks': '{:.2f}',
+                'VMP': '{:.2f}',
+                'SMB GA': '{:.2f}',
+                'Premium Unlimited': '{:.2f}',
+                'VHI/FIOS': '{:.2f}',
+                'News': '{:.0f}',
+                'Upgrades': '{:.0f}',
+                'VZPH': '{:.0f}',
+                'Verizon Visa': '{:.0f}'
+            }) \
+            .apply(lambda row: [highlight_goals(v, col) for col, v in row.items()], axis=1)
         st.dataframe(styled_df, use_container_width=True)
 
         total_gp = df_grouped['GP'].sum()
