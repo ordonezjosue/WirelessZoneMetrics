@@ -82,6 +82,7 @@ if uploaded_file is not None:
 
             if rq_file is not None:
         # Save RQ file to local directory
+        os.makedirs("uploaded_files", exist_ok=True)
         with open(os.path.join("uploaded_files", rq_file.name), "wb") as f:
             f.write(rq_file.getbuffer())
             try:
