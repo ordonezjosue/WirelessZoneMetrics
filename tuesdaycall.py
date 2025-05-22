@@ -146,8 +146,9 @@ if uploaded_file is not None:
         daily_avg_gp = total_gp / num_days if num_days > 0 else 0
 
         from calendar import monthrange
-num_days_in_month = monthrange(end_date.year, end_date.month)[1]
-projected_gp = daily_avg_gp * num_days_in_month
+
+        num_days_in_month = monthrange(end_date.year, end_date.month)[1]
+        projected_gp = daily_avg_gp * num_days_in_month
 
         st.markdown(f"""
         ### 📈 Current Month Trend Summary
