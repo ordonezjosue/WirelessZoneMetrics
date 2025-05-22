@@ -69,7 +69,6 @@ if uploaded_file is not None:
             'VZ FIOS GA': 'sum', 'VZPH': 'sum', 'Verizon Visa': 'sum', 'SMT Qty': 'sum'
         })
 
-        df_grouped['Total Boxes'] = df_grouped['News'] + df_grouped['Upgrades']
         df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0, df_grouped['News'] / df_grouped['Upgrades'], 0).round(2)
         df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0).round(2)
         df_grouped['VHI/FIOS'] = df_grouped['VZ VHI GA'] + df_grouped['VZ FIOS GA']
@@ -83,7 +82,7 @@ if uploaded_file is not None:
 
                 rq_filtered = rq_data[['Employee Name', '(Q) FiOS Sales', '(Q) 5G Consumer Internet']].copy()
                 rq_filtered.columns = ['Employee', 'FiOS Sales', '5G Internet']
-                rq_filtered['Employee'] = rq_filtered['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
+                rq_filtered['Employee'] = rq_filtered['Employee'].apply(lambda name: " ".join(sorted(str(name).strip().split())).title())
                 rq_filtered['FiOS Sales'] = pd.to_numeric(rq_filtered['FiOS Sales'], errors='coerce').fillna(0)
                 rq_filtered['5G Internet'] = pd.to_numeric(rq_filtered['5G Internet'], errors='coerce').fillna(0)
                 rq_filtered['VHI/FIOS'] = rq_filtered['FiOS Sales'] + rq_filtered['5G Internet']
@@ -96,15 +95,33 @@ if uploaded_file is not None:
             except Exception as rq_error:
                 st.warning(f"⚠️ RQ File error: {rq_error}")
 
-        # Metrics goals
-        goals = {
-            'Ratio': 0.5, 'SMT GA': 30, 'Perks': 56, 'VMP': 55,
-            'GP Per Smart': 460, 'SMB GA': 3, 'Premium Unlimited': 65
-        }
+        # Calculate totals and averages
+        summary_row = pd.DataFrame({
+            'Employee': ['Total/Average'],
+            'News': [df_grouped['News'].sum()],
+            'Upgrades': [df_grouped['Upgrades'].sum()],
+            'SMT GA': [df_grouped['SMT GA'].sum()],
+            'Ratio': [df_grouped['Ratio'].mean()],
+            'Perks': [df_grouped['Perks'].mean()],
+            'VMP': [df_grouped['VMP'].mean()],
+            'GP Per Smart': [df_grouped['GP Per Smart'].mean()],
+            'GP': [df_grouped['GP'].sum()],
+            'SMB GA': [df_grouped['SMB GA'].sum()],
+            'Premium Unlimited': [df_grouped['Premium Unlimited'].mean()],
+            'VHI/FIOS': [df_grouped['VHI/FIOS'].sum()],
+            'VZPH': [df_grouped['VZPH'].sum()],
+            'Verizon Visa': [df_grouped['Verizon Visa'].sum()]
+        })
 
-        # Prepare final table
-        df_grouped['Employee'] = df_grouped['Employee'].astype(str)
-        df_display = df_grouped.copy()
+        df_final = pd.concat([df_grouped, summary_row], ignore_index=True)
+
+        # Format dollar columns
+        df_final['GP'] = df_final['GP'].apply(lambda x: f"${x:,.2f}" if isinstance(x, (int, float)) else x)
+        df_final['GP Per Smart'] = df_final['GP Per Smart'].apply(lambda x: f"${x:,.2f}" if isinstance(x, (int, float)) else x)
+
+        # Remove unwanted columns
+        drop_cols = ['SMT Qty', 'Total Boxes', 'VZ VHI GA', 'VZ FIOS GA']
+        df_final.drop(columns=[col for col in drop_cols if col in df_final.columns], inplace=True)
 
         st.markdown("""
         <style>
@@ -123,10 +140,9 @@ if uploaded_file is not None:
         """, unsafe_allow_html=True)
 
         st.subheader("\U0001F4C4 Performance Table with Goals & Totals")
-        st.dataframe(df_display, use_container_width=True)
+        st.dataframe(df_final, use_container_width=True)
 
-        # Total GP & daily average
-        total_gp = df_display['GP'].sum()
+        total_gp = df_grouped['GP'].sum()
         daily_avg_gp = total_gp / num_days if num_days > 0 else 0
 
         st.markdown(f"""
@@ -135,8 +151,7 @@ if uploaded_file is not None:
         - 📅 **Average Daily GP:** ${daily_avg_gp:,.2f} (based on {num_days} days)
         """)
 
-        # CSV Export
-        csv = df_display.to_csv(index=False).encode('utf-8')
+        csv = df_final.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="⬇️ Download CSV Report",
             data=csv,
