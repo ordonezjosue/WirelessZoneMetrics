@@ -1,29 +1,38 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import datetime
+from io import BytesIO
+from datetime import date
 
 st.set_page_config(page_title="Current Sales Performance", layout="wide")
 
-st.title("📊 Current Sales Performance Overview")
+st.title("\U0001F4CA Current Sales Performance Overview")
+
 st.markdown("""
-### 🗂️ How to Export Your Sales CSV from Power BI
+### \U0001F5C2️ How to Export Your Sales CSV from Power BI
 
 1. Open **Power BI**
 2. Navigate to the **WZ Sales Analysis** dashboard
 3. Scroll to the bottom and click **KPI Details**
 4. At the top, select the **Employee** view
-5. Click the **three dots (⋯)** in the upper-right of the chart
+5. Click the **three dots (\u22EF)** in the upper-right of the chart
 6. Choose **Export Data**
 7. Set **Data format** to `Summarized data` and file type to `.CSV`
 8. Download and save the CSV file
 9. Upload it below ⬇️
 """)
 
-uploaded_file = st.file_uploader("📂 Upload your sales CSV file", type=["csv"])
+uploaded_file = st.file_uploader("\U0001F4C2 Upload your sales CSV file", type=["csv"])
+rq_file = st.file_uploader("\U0001F4C4 Upload the RQ Excel file", type=["xlsx"])
 
-# Upload second file for RQ
-rq_file = st.file_uploader("📄 Upload the RQ Excel file", type=["xlsx"])
+# Date range input
+st.markdown("**Select Reporting Period (for GP Daily Average):**")
+col1, col2 = st.columns(2)
+with col1:
+    start_date = st.date_input("Start Date", date(2025, 5, 1))
+with col2:
+    end_date = st.date_input("End Date", date(2025, 5, 20))
+num_days = (end_date - start_date).days + 1
 
 if uploaded_file is not None:
     try:
@@ -31,7 +40,7 @@ if uploaded_file is not None:
         df.columns = [col.strip() for col in df.columns]
 
         if 'SMT Qty' not in df.columns:
-            st.error("❌ The required column 'SMT Qty' was not found in your CSV.")
+            st.error("\u274C 'SMT Qty' column missing.")
             st.stop()
 
         df.rename(columns={
@@ -54,21 +63,10 @@ if uploaded_file is not None:
 
         df.fillna(0, inplace=True)
 
-        # Grouping and aggregation
         df_grouped = df.groupby('Employee', as_index=False).agg({
-            'News': 'sum',
-            'Upgrades': 'sum',
-            'SMT GA': 'sum',
-            'Perks': 'mean',
-            'VMP': 'mean',
-            'GP': 'sum',
-            'SMB GA': 'sum',
-            'Premium Unlimited': 'mean',
-            'VZ VHI GA': 'sum',
-            'VZ FIOS GA': 'sum',
-            'VZPH': 'sum',
-            'Verizon Visa': 'sum',
-            'SMT Qty': 'sum'
+            'News': 'sum', 'Upgrades': 'sum', 'SMT GA': 'sum', 'Perks': 'mean', 'VMP': 'mean',
+            'GP': 'sum', 'SMB GA': 'sum', 'Premium Unlimited': 'mean', 'VZ VHI GA': 'sum',
+            'VZ FIOS GA': 'sum', 'VZPH': 'sum', 'Verizon Visa': 'sum', 'SMT Qty': 'sum'
         })
 
         df_grouped['Total Boxes'] = df_grouped['News'] + df_grouped['Upgrades']
@@ -76,7 +74,6 @@ if uploaded_file is not None:
         df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0).round(2)
         df_grouped['VHI/FIOS'] = df_grouped['VZ VHI GA'] + df_grouped['VZ FIOS GA']
 
-        # Merge RQ Data if uploaded
         if rq_file is not None:
             try:
                 rq_excel = pd.ExcelFile(rq_file)
@@ -86,30 +83,29 @@ if uploaded_file is not None:
 
                 rq_filtered = rq_data[['Employee Name', '(Q) FiOS Sales', '(Q) 5G Consumer Internet']].copy()
                 rq_filtered.columns = ['Employee', 'FiOS Sales', '5G Internet']
-                rq_filtered['Employee'] = rq_filtered['Employee'].astype(str).str.strip()
                 rq_filtered['Employee'] = rq_filtered['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
-
                 rq_filtered['FiOS Sales'] = pd.to_numeric(rq_filtered['FiOS Sales'], errors='coerce').fillna(0)
                 rq_filtered['5G Internet'] = pd.to_numeric(rq_filtered['5G Internet'], errors='coerce').fillna(0)
                 rq_filtered['VHI/FIOS'] = rq_filtered['FiOS Sales'] + rq_filtered['5G Internet']
 
-                df_grouped = df_grouped.drop(columns=['VHI/FIOS'], errors='ignore')
+                df_grouped.drop(columns=['VHI/FIOS'], inplace=True, errors='ignore')
                 df_grouped = pd.merge(df_grouped, rq_filtered[['Employee', 'VHI/FIOS']], on='Employee', how='left')
                 df_grouped['VHI/FIOS'] = df_grouped['VHI/FIOS'].fillna(0)
-                st.success("📥 RQ File merged and VHI/FIOS updated successfully.")
+                st.success("RQ File merged. VHI/FIOS updated.")
 
             except Exception as rq_error:
-                st.warning(f"⚠️ RQ File upload failed: {rq_error}")
+                st.warning(f"⚠️ RQ File error: {rq_error}")
 
-        # Final formatting
-        final_cols = [
-            'Employee', 'News', 'Upgrades', 'Total Boxes', 'Ratio', 'SMT GA',
-            'Perks', 'VMP', 'GP Per Smart', 'GP', 'SMB GA', 'Premium Unlimited',
-            'VHI/FIOS', 'VZPH', 'Verizon Visa'
-        ]
-        df_display = df_grouped[final_cols].copy()
+        # Metrics goals
+        goals = {
+            'Ratio': 0.5, 'SMT GA': 30, 'Perks': 56, 'VMP': 55,
+            'GP Per Smart': 460, 'SMB GA': 3, 'Premium Unlimited': 65
+        }
 
-        # Show goal row
+        # Prepare final table
+        df_grouped['Employee'] = df_grouped['Employee'].astype(str)
+        df_display = df_grouped.copy()
+
         st.markdown("""
         <style>
         .goal-row {
@@ -126,26 +122,27 @@ if uploaded_file is not None:
         </div>
         """, unsafe_allow_html=True)
 
-        # Add totals/averages
-        summary_row = pd.DataFrame(df_display.mean(numeric_only=True)).T
-        summary_row['Employee'] = 'Average'
-        summary_row = summary_row[df_display.columns]
-        df_final = pd.concat([df_display, summary_row], ignore_index=True)
+        st.subheader("\U0001F4C4 Performance Table with Goals & Totals")
+        st.dataframe(df_display, use_container_width=True)
 
-        # Display table
-        st.subheader("📄 Performance Table with Goals & Totals")
-        st.dataframe(df_final, use_container_width=True)
-
-        # Total GP & Daily Average Summary
-        total_gp = df_grouped['GP'].sum()
-        num_days = 20  # Manually defined for now
-        daily_avg_gp = total_gp / num_days
+        # Total GP & daily average
+        total_gp = df_display['GP'].sum()
+        daily_avg_gp = total_gp / num_days if num_days > 0 else 0
 
         st.markdown(f"""
-        ### 📈 Current Month Trend Summary
+        ### \U0001F4C8 Current Month Trend Summary
         - 💰 **Total Monthly GP:** ${total_gp:,.2f}
         - 📅 **Average Daily GP:** ${daily_avg_gp:,.2f} (based on {num_days} days)
         """)
 
+        # CSV Export
+        csv = df_display.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="⬇️ Download CSV Report",
+            data=csv,
+            file_name="sales_performance_summary.csv",
+            mime='text/csv'
+        )
+
     except Exception as e:
-        st.error(f"❌ Error while processing file:\n\n{e}")
+        st.error(f"❌ File processing error: {e}")
