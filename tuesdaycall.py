@@ -20,7 +20,10 @@ st.markdown("""
 9. Upload it below ⬇️
 """)
 
-uploaded_file = st.file_uploader("\U0001F4C1 Upload your sales CSV file", type=["csv"])
+uploaded_file = st.file_uploader("📂 Upload your sales CSV file", type=["csv"])
+
+# Upload second file for RQ
+rq_file = st.file_uploader("📄 Upload the RQ Excel file", type=["xlsx"])
 
 if uploaded_file is not None:
     try:
@@ -28,7 +31,7 @@ if uploaded_file is not None:
         df.columns = [col.strip() for col in df.columns]
 
         if 'SMT Qty' not in df.columns:
-            st.error("\u274C The required column 'SMT Qty' was not found in your CSV.")
+            st.error("❌ The required column 'SMT Qty' was not found in your CSV.")
             st.stop()
 
         df.rename(columns={
@@ -51,13 +54,13 @@ if uploaded_file is not None:
 
         df.fillna(0, inplace=True)
 
-        # Grouping and Aggregation
+        # Grouping and aggregation
         df_grouped = df.groupby('Employee', as_index=False).agg({
             'News': 'sum',
             'Upgrades': 'sum',
             'SMT GA': 'sum',
-            'Perks': 'mean',  # Mean instead of sum
-            'VMP': 'mean',    # Corrected to average instead of sum
+            'Perks': 'mean',
+            'VMP': 'mean',
             'GP': 'sum',
             'SMB GA': 'sum',
             'Premium Unlimited': 'mean',
@@ -73,6 +76,32 @@ if uploaded_file is not None:
         df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0).round(2)
         df_grouped['VHI/FIOS'] = df_grouped['VZ VHI GA'] + df_grouped['VZ FIOS GA']
 
+        # Merge RQ Data if uploaded
+        if rq_file is not None:
+            try:
+                rq_excel = pd.ExcelFile(rq_file)
+                rq_df = rq_excel.parse(rq_excel.sheet_names[0])
+                rq_data = rq_df.iloc[2:].copy()
+                rq_data.columns = rq_df.iloc[1]
+
+                rq_filtered = rq_data[['Employee Name', '(Q) FiOS Sales', '(Q) 5G Consumer Internet']].copy()
+                rq_filtered.columns = ['Employee', 'FiOS Sales', '5G Internet']
+                rq_filtered['Employee'] = rq_filtered['Employee'].astype(str).str.strip()
+                rq_filtered['Employee'] = rq_filtered['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
+
+                rq_filtered['FiOS Sales'] = pd.to_numeric(rq_filtered['FiOS Sales'], errors='coerce').fillna(0)
+                rq_filtered['5G Internet'] = pd.to_numeric(rq_filtered['5G Internet'], errors='coerce').fillna(0)
+                rq_filtered['VHI/FIOS'] = rq_filtered['FiOS Sales'] + rq_filtered['5G Internet']
+
+                df_grouped = df_grouped.drop(columns=['VHI/FIOS'], errors='ignore')
+                df_grouped = pd.merge(df_grouped, rq_filtered[['Employee', 'VHI/FIOS']], on='Employee', how='left')
+                df_grouped['VHI/FIOS'] = df_grouped['VHI/FIOS'].fillna(0)
+                st.success("📥 RQ File merged and VHI/FIOS updated successfully.")
+
+            except Exception as rq_error:
+                st.warning(f"⚠️ RQ File upload failed: {rq_error}")
+
+        # Final formatting
         final_cols = [
             'Employee', 'News', 'Upgrades', 'Total Boxes', 'Ratio', 'SMT GA',
             'Perks', 'VMP', 'GP Per Smart', 'GP', 'SMB GA', 'Premium Unlimited',
@@ -80,9 +109,40 @@ if uploaded_file is not None:
         ]
         df_display = df_grouped[final_cols].copy()
 
-        st.success("\u2705 File processed successfully!")
-        st.subheader("\U0001F4C4 Performance Table with Goals & Totals")
-        st.dataframe(df_display, use_container_width=True)
+        # Show goal row
+        st.markdown("""
+        <style>
+        .goal-row {
+            font-weight: bold;
+            background-color: #f0f2f6;
+            padding: 8px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        </style>
+        <div class="goal-row">
+        🎯 <b>Goals:</b> Ratio ≥ 0.5 | SMT GA ≥ 30 | Perks ≥ 56% | VMP ≥ 55% | GP/Smart ≥ $460 | SMB GA ≥ 3 | Premium Unlimited ≥ 65%
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Add totals/averages
+        summary_row = pd.DataFrame(df_display.mean(numeric_only=True)).T
+        summary_row['Employee'] = 'Average'
+        summary_row = summary_row[df_display.columns]
+        df_final = pd.concat([df_display, summary_row], ignore_index=True)
+
+        # Display table
+        st.subheader("📄 Performance Table with Goals & Totals")
+        st.dataframe(df_final, use_container_width=True)
+
+        # Trend summary
+        st.markdown(f"""
+        ### 📈 Current Month Trend Summary
+        - 📌 **Average Ratio:** {summary_row['Ratio'].values[0]:.2f}
+        - 💰 **Average GP Per Smart:** ${summary_row['GP Per Smart'].values[0]:.2f}
+        - 📦 **Average Total Boxes:** {summary_row['Total Boxes'].values[0]:.1f}
+        """)
 
     except Exception as e:
-        st.error(f"\u274C Error while processing file:\n\n{e}")
+        st.error(f"❌ Error while processing file:\n\n{e}")
