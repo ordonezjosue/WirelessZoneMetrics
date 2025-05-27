@@ -57,6 +57,13 @@ if uploaded_file is not None:
     os.makedirs("uploaded_files", exist_ok=True)
     with open(os.path.join("uploaded_files", uploaded_file.name), "wb") as f:
         f.write(uploaded_file.getbuffer())
+
+if rq_file is not None:
+    # Save RQ file to local directory
+    os.makedirs("uploaded_files", exist_ok=True)
+    with open(os.path.join("uploaded_files", rq_file.name), "wb") as f:
+        f.write(rq_file.getbuffer())
+
     try:
         df = pd.read_csv(uploaded_file)
         df.columns = [col.strip() for col in df.columns]
