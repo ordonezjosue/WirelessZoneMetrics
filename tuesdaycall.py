@@ -23,8 +23,23 @@ st.markdown("""
 9. Upload it below ⬇️
 """)
 
-uploaded_file = st.file_uploader("\U0001F4C2 Upload your sales CSV file", type=["csv"])
-rq_file = st.file_uploader("\U0001F4C4 Upload the RQ Excel file", type=["xlsx"])
+uploaded_file = st.file_uploader("📂 Upload your sales CSV file", type=["csv"])
+
+# Dropdown to load previously uploaded CSVs
+os.makedirs("uploaded_files", exist_ok=True)
+csv_files = [f for f in os.listdir("uploaded_files") if f.endswith(".csv")]
+if csv_files:
+    selected_csv = st.selectbox("📁 Or select a previously uploaded CSV:", csv_files)
+    if selected_csv and not uploaded_file:
+        uploaded_file = open(os.path.join("uploaded_files", selected_csv), "rb")
+rq_file = st.file_uploader("📄 Upload the RQ Excel file", type=["xlsx"])
+
+# Dropdown to load previously uploaded RQ Excel files
+rq_files = [f for f in os.listdir("uploaded_files") if f.endswith(".xlsx")]
+if rq_files:
+    selected_rq = st.selectbox("📁 Or select a previously uploaded RQ file:", rq_files)
+    if selected_rq and not rq_file:
+        rq_file = open(os.path.join("uploaded_files", selected_rq), "rb")
 
 # Date range input
 st.markdown("**Select Reporting Period (for GP Daily Average):**")
