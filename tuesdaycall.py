@@ -102,11 +102,7 @@ if rq_file is not None:
         df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0).round(2)
         df_grouped['VHI/FIOS'] = df_grouped['VZ VHI GA'] + df_grouped['VZ FIOS GA']
 
-            if rq_file is not None:
-        # Save RQ file to local directory
-        os.makedirs("uploaded_files", exist_ok=True)
-        with open(os.path.join("uploaded_files", rq_file.name), "wb") as f:
-            f.write(rq_file.getbuffer())
+        if rq_file is not None:
             try:
                 rq_excel = pd.ExcelFile(rq_file)
                 rq_df = rq_excel.parse(rq_excel.sheet_names[0])
