@@ -201,18 +201,32 @@ if uploaded_file is not None:
 st.markdown(
     """
     <style>
-    .fixed-button {
+    .side-buttons {
         position: fixed;
-        bottom: 20px;
+        top: 100px;
         left: 20px;
         z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .side-buttons button {
+        font-size: 14px;
+        padding: 8px 16px;
+        border-radius: 6px;
+        background-color: #e0e0e0;
+        color: #000;
+        border: 1px solid #999;
+        cursor: pointer;
     }
     </style>
-    <div class="fixed-button">
+
+    <div class="side-buttons">
         <a href="https://commcalc.streamlit.app/" target="_blank">
-            <button style="font-size:14px; padding:8px 16px; border-radius:6px; background-color:#e0e0e0; color:#000; border:1px solid #999;">
-                Internal Login
-            </button>
+            <button>Internal Login</button>
+        </a>
+        <a href="https://marcuscomm.streamlit.app/" target="_blank">
+            <button>Marcus Commission</button>
         </a>
     </div>
     """,
