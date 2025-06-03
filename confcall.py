@@ -204,8 +204,12 @@ st.markdown(
     .side-buttons {
         position: fixed;
         top: 100px;
-        left: 20px;
-        z-index: 100;
+        left: -10px; /* Move outside page margin */
+        padding: 10px;
+        background-color: #f9f9f9;
+        border-radius: 10px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        z-index: 50; /* Lower than Streamlit UI */
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -218,6 +222,7 @@ st.markdown(
         color: #000;
         border: 1px solid #999;
         cursor: pointer;
+        width: 160px;
     }
     </style>
 
