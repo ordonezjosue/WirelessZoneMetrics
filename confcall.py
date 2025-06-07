@@ -68,7 +68,7 @@ if uploaded_file is not None:
 
         required_cols = [
             'Employee Full Name', 'GA', 'Upgrades', 'SMT GA', 'SMB GA',
-            'VZ Perks Rate', '(RQ) Consumer SMT Prem Unlim %', 'VZ VHI GA',
+            'VZ Perks Rate', '(RQ) Consumer SMT Prem Unlim %', 'VZ FWA GA',
             'VZ FIOS GA', 'VMP Take Rate', 'GP', 'SMT QTY'
         ]
         missing_cols = [col for col in required_cols if col not in df.columns]
@@ -85,9 +85,10 @@ if uploaded_file is not None:
 
             df = df[df['Employee'].astype(str).str.split().str.len() >= 2]
             df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
-
             df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
+            df['FIOS/VHI'] = df['VZ FWA GA'] + df['VZ FIOS GA']
+            df.drop(columns=['VZ FWA GA', 'VZ FIOS GA'], inplace=True)
             df_display_all = df.copy()
             df = df[~df['Employee'].str.lower().isin(['josh ordonez', 'thimotee wiguen'])]
 
@@ -103,7 +104,7 @@ if uploaded_file is not None:
 
             numeric_cols = [
                 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'VZ Perks Rate (%)',
-                'Premium Unlim (%)', 'VZ VHI GA', 'VZ FIOS GA', 'VMP', 'GP', 'SMT QTY'
+                'Premium Unlim (%)', 'VMP', 'GP', 'SMT QTY', 'FIOS/VHI'
             ]
             df[numeric_cols] = df[numeric_cols].fillna(0)
             df_display_all[numeric_cols] = df_display_all[numeric_cols].fillna(0)
@@ -122,8 +123,9 @@ if uploaded_file is not None:
             df_display_all_display['VZ Perks Rate (%)'] = df_display_all['VZ Perks Rate (%)'].round(2).apply(lambda x: f"{x:.2f}%")
             df_display_all_display['Premium Unlim (%)'] = df_display_all['Premium Unlim (%)'].round(2).apply(lambda x: f"{x:.2f}%")
             df_display_all_display['VMP'] = df_display_all['VMP'].round(2).apply(lambda x: f"{x:.2f}%")
+            df_display_all_display['FIOS/VHI'] = df_display_all['FIOS/VHI'].round(2)
 
-            for col in ['Ratio', 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'Total GA', 'VZ VHI GA', 'VZ FIOS GA']:
+            for col in ['Ratio', 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'Total GA']:
                 df_display_all_display[col] = df_display_all[col].round(2)
 
             total_row = {
@@ -134,14 +136,13 @@ if uploaded_file is not None:
                 'SMB GA': df_display_all['SMB GA'].sum().round(2),
                 'VZ Perks Rate (%)': f"{df_display_all['VZ Perks Rate (%)'].mean():.2f}%",
                 'Premium Unlim (%)': f"{df_display_all['Premium Unlim (%)'].mean():.2f}%",
-                'VZ VHI GA': df_display_all['VZ VHI GA'].sum().round(2),
-                'VZ FIOS GA': df_display_all['VZ FIOS GA'].sum().round(2),
                 'VMP': f"{df_display_all['VMP'].mean():.2f}%",
                 'GP': f"${df_display_all['GP'].sum():,.2f}",
                 'SMT QTY': df_display_all['SMT QTY'].sum().round(2),
                 'Total GA': df_display_all['Total GA'].sum().round(2),
                 'Ratio': df_display_all['Ratio'].mean().round(2),
-                'GP Per Smart': f"${df_display_all['GP'].sum() / df_display_all['SMT QTY'].sum():,.2f}" if df_display_all['SMT QTY'].sum() > 0 else "$0.00"
+                'GP Per Smart': f"${df_display_all['GP'].sum() / df_display_all['SMT QTY'].sum():,.2f}" if df_display_all['SMT QTY'].sum() > 0 else "$0.00",
+                'FIOS/VHI': df_display_all['FIOS/VHI'].sum().round(2)
             }
             df_display_all_display = pd.concat([df_display_all_display, pd.DataFrame([total_row])], ignore_index=True)
 
@@ -165,7 +166,7 @@ if uploaded_file is not None:
             def score_vmp(x): return 4 if x >= 75 else 3 if x >= 65 else 2 if x >= 55 else 1
             def score_smb(x): return 4 if x >= 7 else 3 if x >= 5 else 2 if x >= 3 else 1
             def score_unlimited(x): return 4 if x >= 65 else 3 if x >= 60 else 2 if x >= 55 else 1
-            def score_vhi_fios(row): return 4 if (row['VZ VHI GA'] + row['VZ FIOS GA']) >= 7 else 3 if (row['VZ VHI GA'] + row['VZ FIOS GA']) >= 5 else 2 if (row['VZ VHI GA'] + row['VZ FIOS GA']) >= 3 else 1
+            def score_vhi_fios(x): return 4 if x >= 7 else 3 if x >= 5 else 2 if x >= 3 else 1
             def score_gp(x): return 4 if x >= 40001 else 3 if x >= 30000 else 2 if x >= 18201 else 1
 
             df_points['Score SMT'] = df['SMT GA'].apply(score_smt)
@@ -174,7 +175,7 @@ if uploaded_file is not None:
             df_points['Score VMP'] = df_points['VMP'].apply(score_vmp)
             df_points['Score SMB'] = df['SMB GA'].apply(score_smb)
             df_points['Score Unlimited'] = df_points['Premium Unlim (%)'].apply(score_unlimited)
-            df_points['Score VHI/FIOS'] = df.apply(score_vhi_fios, axis=1)
+            df_points['Score VHI/FIOS'] = df_points['FIOS/VHI'].apply(score_vhi_fios)
             df_points['Score GP'] = df_points['GP_raw'].apply(score_gp)
 
             df_points['Points'] = df_points[[ 
