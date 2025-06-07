@@ -195,6 +195,13 @@ if uploaded_file is not None:
                 'Points', 'Commission %', 'Commission Earned'
             ]], use_container_width=True)
 
+            st.markdown("""
+            ---
+            
+            📅 **Coming July 2025**: [Marcus's Commission Calculator](https://marcuscomm.streamlit.app/)
+            
+            """)
+
     except Exception as e:
         st.error(f"❌ An error occurred while processing the file:\n{e}")
 
