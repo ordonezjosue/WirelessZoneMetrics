@@ -1,202 +1,220 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from io import BytesIO
-from datetime import date
-from calendar import monthrange
 
-st.set_page_config(page_title="Current Sales Performance", layout="wide")
+# --- MUST BE FIRST Streamlit command ---
+st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
 
-st.title("\U0001F4CA Current Sales Performance Overview")
+# --- Password Protection ---
+def check_password():
+    if "authenticated" not in st.session_state:
+        st.session_state["authenticated"] = False
 
+    if not st.session_state["authenticated"]:
+        st.markdown("""
+            ## 🔐 Elypse Systems and Solutions
+            Welcome to the **Sales Performance Extractor Tool**.
+
+            This tool allows you to upload monthly sales CSV data and receive:
+            - A clean, styled summary of key performance metrics
+            - Automated commission scorecards based on our internal point system
+            - Trend insights and GP breakdowns for all employees
+
+            **Please enter the same password we use for Google Drive.**  
+            This is to ensure that **company performance data is protected** and only visible to internal team members.
+        """)
+
+        password = st.text_input("🔑 Enter password to access this app:", type="password")
+        if st.button("🔓 Submit"):
+            if password == st.secrets["app_password"]:
+                st.session_state["authenticated"] = True
+                st.rerun()
+            else:
+                st.error("❌ Incorrect password")
+                st.stop()
+        else:
+            st.stop()
+
+check_password()
+
+# --- Page Title ---
+st.title("📊 Sales Performance Commissions/Results")
+st.markdown("Upload your sales CSV and extract a clean, styled summary with point-based commission insights.")
+
+# --- File Upload ---
+uploaded_file = st.file_uploader("📁 Upload your sales CSV file", type=["csv"])
+
+# --- Power BI Instructions ---
 st.markdown("""
-### \U0001F5C2️ How to Export Your Sales CSV from Power BI
+### 🗓️ How to Export Your Sales CSV from Power BI:
 
-1. Open **Power BI**
-2. Navigate to the **WZ Sales Analysis** dashboard
-3. Scroll to the bottom and click **KPI Details**
-4. At the top, select the **Employee** view
-5. Click the **three dots (\u22EF)** in the upper-right of the chart
-6. Choose **Export Data**
-7. Set **Data format** to `Summarized data` and file type to `.CSV`
-8. Download and save the CSV file
-9. Upload it below ⬇️
+1. Log into **Power BI**  
+2. Go to **WZ Sales Analysis**  
+3. Scroll to the bottom and select **KPI Details**  
+4. At the top, click **Employee**  
+5. Click the **three dots (⋯)** next to "More Options"  
+6. Select **Export data**  
+7. Choose **Summarized data**  
+8. Select **.CSV** as the file format and save it to your computer  
+9. Upload the CSV file above ⬇️
 """)
 
-uploaded_file = st.file_uploader("\U0001F4C2 Upload your sales CSV file", type=["csv"])
-rq_file = st.file_uploader("\U0001F4C4 Upload the RQ Excel file", type=["xlsx"])
-
-# Date range input
-st.markdown("**Select Reporting Period (for GP Daily Average):**")
-col1, col2 = st.columns(2)
-with col1:
-    start_date = st.date_input("Start Date", date(2025, 5, 1))
-with col2:
-    end_date = st.date_input("End Date", date(2025, 5, 20))
-num_days = (end_date - start_date).days + 1
-
+# --- File Handling ---
 if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
         df.columns = [col.strip() for col in df.columns]
+        df.rename(columns={'SMT Qty': 'SMT QTY'}, inplace=True)
 
-        if 'SMT Qty' not in df.columns:
-            st.error("\u274C 'SMT Qty' column missing.")
-            st.stop()
+        required_cols = [
+            'Employee Full Name', 'GA', 'Upgrades', 'SMT GA', 'SMB GA',
+            'VZ Perks Rate', '(RQ) Consumer SMT Prem Unlim %', 'VZ VHI GA',
+            'VZ FIOS GA', 'VMP Take Rate', 'GP', 'SMT QTY'
+        ]
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            st.error(f"❌ Missing columns: {', '.join(missing_cols)}")
+        else:
+            df.rename(columns={
+                'Employee Full Name': 'Employee',
+                'GA': 'News',
+                'VZ Perks Rate': 'VZ Perks Rate (%)',
+                '(RQ) Consumer SMT Prem Unlim %': 'Premium Unlim (%)',
+                'VMP Take Rate': 'VMP'
+            }, inplace=True)
 
-        df.rename(columns={
-            'Employee Full Name': 'Employee',
-            'GA': 'News',
-            'VZ Perks Rate': 'Perks',
-            '(RQ) Consumer SMT Prem Unlim %': 'Premium Unlimited',
-            'VMP Take Rate': 'VMP',
-            'VZPH Qty': 'VZPH',
-            'VZ CC QTY': 'Verizon Visa'
-        }, inplace=True)
+            df = df[df['Employee'].astype(str).str.split().str.len() >= 2]
+            df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
 
-        df = df[df['Employee'].astype(str).str.split().str.len() >= 2]
-        df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
-        df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
+            df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
-        numeric_cols = ['Perks', 'VMP', 'Premium Unlimited', 'GP', 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'SMT Qty', 'VZ VHI GA', 'VZ FIOS GA', 'VZPH', 'Verizon Visa']
-        for col in numeric_cols:
-            df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', '').str.replace('$', '').str.replace(',', ''), errors='coerce')
+            df_display_all = df.copy()
+            df = df[~df['Employee'].str.lower().isin(['josh ordonez', 'thimotee wiguen'])]
 
-        df.fillna(0, inplace=True)
+            for col in ['Premium Unlim (%)', 'VMP', 'VZ Perks Rate (%)']:
+                df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', ''), errors='coerce')
+                df_display_all[col] = pd.to_numeric(df_display_all[col].astype(str).str.replace('%', ''), errors='coerce')
 
-        df_grouped = df.groupby('Employee', as_index=False).agg({
-            'News': 'sum', 'Upgrades': 'sum', 'SMT GA': 'sum', 'Perks': 'mean', 'VMP': 'mean',
-            'GP': 'sum', 'SMB GA': 'sum', 'Premium Unlimited': 'mean', 'VZ VHI GA': 'sum',
-            'VZ FIOS GA': 'sum', 'VZPH': 'sum', 'Verizon Visa': 'sum', 'SMT Qty': 'sum'
-        })
+            df['GP'] = pd.to_numeric(df['GP'].astype(str).str.replace(r'[\$,]', '', regex=True), errors='coerce')
+            df_display_all['GP'] = pd.to_numeric(df_display_all['GP'].astype(str).str.replace(r'[\$,]', '', regex=True), errors='coerce')
 
-        df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0, df_grouped['News'] / df_grouped['Upgrades'], 0).round(2)
-        df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0).round(2)
-        df_grouped['VHI/FIOS'] = df_grouped['VZ VHI GA'] + df_grouped['VZ FIOS GA']
+            df['SMT QTY'] = pd.to_numeric(df['SMT QTY'], errors='coerce')
+            df_display_all['SMT QTY'] = pd.to_numeric(df_display_all['SMT QTY'], errors='coerce')
 
-        if rq_file is not None:
-            try:
-                rq_excel = pd.ExcelFile(rq_file)
-                rq_df = rq_excel.parse(rq_excel.sheet_names[0])
-                rq_data = rq_df.iloc[2:].copy()
-                rq_data.columns = rq_df.iloc[1]
+            numeric_cols = [
+                'News', 'Upgrades', 'SMT GA', 'SMB GA', 'VZ Perks Rate (%)',
+                'Premium Unlim (%)', 'VZ VHI GA', 'VZ FIOS GA', 'VMP', 'GP', 'SMT QTY'
+            ]
+            df[numeric_cols] = df[numeric_cols].fillna(0)
+            df_display_all[numeric_cols] = df_display_all[numeric_cols].fillna(0)
 
-                rq_filtered = rq_data[['Employee Name', '(Q) FiOS Sales', '(Q) 5G Consumer Internet']].copy()
-                rq_filtered.columns = ['Employee', 'FiOS Sales', '5G Internet']
-                rq_filtered['Employee'] = rq_filtered['Employee'].apply(lambda name: " ".join(sorted(str(name).strip().split())).title())
-                rq_filtered['FiOS Sales'] = pd.to_numeric(rq_filtered['FiOS Sales'], errors='coerce').fillna(0)
-                rq_filtered['5G Internet'] = pd.to_numeric(rq_filtered['5G Internet'], errors='coerce').fillna(0)
-                rq_filtered['VHI/FIOS'] = rq_filtered['FiOS Sales'] + rq_filtered['5G Internet']
+            df = df.groupby('Employee', as_index=False)[numeric_cols].sum()
+            df_display_all = df_display_all.groupby('Employee', as_index=False)[numeric_cols].sum()
 
-                df_grouped.drop(columns=['VHI/FIOS'], inplace=True, errors='ignore')
-                df_grouped = pd.merge(df_grouped, rq_filtered[['Employee', 'VHI/FIOS']], on='Employee', how='left')
-                df_grouped['VHI/FIOS'] = df_grouped['VHI/FIOS'].fillna(0)
-                st.success("RQ File merged. VHI/FIOS updated.")
+            for data in [df, df_display_all]:
+                data['Total GA'] = data['News'] + data['Upgrades']
+                data['Ratio'] = np.where(data['Upgrades'] != 0, data['News'] / data['Upgrades'], 0).round(2)
+                data['GP Per Smart'] = np.where(data['SMT QTY'] != 0, data['GP'] / data['SMT QTY'], 0).round(2)
 
-            except Exception as rq_error:
-                st.warning(f"⚠️ RQ File error: {rq_error}")
+            df_display_all_display = df_display_all.copy()
+            df_display_all_display['GP'] = df_display_all['GP'].round(2).apply(lambda x: f"${x:,.2f}")
+            df_display_all_display['GP Per Smart'] = df_display_all['GP Per Smart'].round(2).apply(lambda x: f"${x:,.2f}")
+            df_display_all_display['VZ Perks Rate (%)'] = df_display_all['VZ Perks Rate (%)'].round(2).apply(lambda x: f"{x:.2f}%")
+            df_display_all_display['Premium Unlim (%)'] = df_display_all['Premium Unlim (%)'].round(2).apply(lambda x: f"{x:.2f}%")
+            df_display_all_display['VMP'] = df_display_all['VMP'].round(2).apply(lambda x: f"{x:.2f}%")
 
-        summary_row = pd.DataFrame({
-            'Employee': ['Total/Average'],
-            'News': [df_grouped['News'].sum()],
-            'Upgrades': [df_grouped['Upgrades'].sum()],
-            'SMT GA': [df_grouped['SMT GA'].sum()],
-            'Ratio': [df_grouped['Ratio'].mean()],
-            'Perks': [df_grouped['Perks'].mean()],
-            'VMP': [df_grouped['VMP'].mean()],
-            'GP Per Smart': [df_grouped['GP Per Smart'].mean()],
-            'GP': [df_grouped['GP'].sum()],
-            'SMB GA': [df_grouped['SMB GA'].sum()],
-            'Premium Unlimited': [df_grouped['Premium Unlimited'].mean()],
-            'VHI/FIOS': [df_grouped['VHI/FIOS'].sum()],
-            'VZPH': [df_grouped['VZPH'].sum()],
-            'Verizon Visa': [df_grouped['Verizon Visa'].sum()]
-        })
+            for col in ['Ratio', 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'Total GA', 'VZ VHI GA', 'VZ FIOS GA']:
+                df_display_all_display[col] = df_display_all[col].round(2)
 
-        df_final = pd.concat([df_grouped, summary_row], ignore_index=True)
+            total_row = {
+                'Employee': 'TOTAL',
+                'News': df_display_all['News'].sum().round(2),
+                'Upgrades': df_display_all['Upgrades'].sum().round(2),
+                'SMT GA': df_display_all['SMT GA'].sum().round(2),
+                'SMB GA': df_display_all['SMB GA'].sum().round(2),
+                'VZ Perks Rate (%)': f"{df_display_all['VZ Perks Rate (%)'].mean():.2f}%",
+                'Premium Unlim (%)': f"{df_display_all['Premium Unlim (%)'].mean():.2f}%",
+                'VZ VHI GA': df_display_all['VZ VHI GA'].sum().round(2),
+                'VZ FIOS GA': df_display_all['VZ FIOS GA'].sum().round(2),
+                'VMP': f"{df_display_all['VMP'].mean():.2f}%",
+                'GP': f"${df_display_all['GP'].sum():,.2f}",
+                'SMT QTY': df_display_all['SMT QTY'].sum().round(2),
+                'Total GA': df_display_all['Total GA'].sum().round(2),
+                'Ratio': df_display_all['Ratio'].mean().round(2),
+                'GP Per Smart': f"${df_display_all['GP'].sum() / df_display_all['SMT QTY'].sum():,.2f}" if df_display_all['SMT QTY'].sum() > 0 else "$0.00"
+            }
+            df_display_all_display = pd.concat([df_display_all_display, pd.DataFrame([total_row])], ignore_index=True)
 
-        # Round all numeric columns to 2 decimals (except Employee column)
-        for col in df_final.columns:
-            if col != 'Employee' and df_final[col].dtype in [np.float64, np.float32, np.int64, np.int32]:
-                df_final[col] = df_final[col].round(2)
+            st.success("✅ Data processed successfully!")
+            st.subheader("📄 Preview of Cleaned & Highlighted Data")
+            st.dataframe(df_display_all_display, use_container_width=True)
 
-        df_final['GP'] = df_final['GP'].apply(lambda x: f"${x:,.2f}" if isinstance(x, (int, float)) else x)
-        df_final['GP Per Smart'] = df_final['GP Per Smart'].apply(lambda x: f"${x:,.2f}" if isinstance(x, (int, float)) else x)
+            st.divider()
+            st.subheader("📈 Commission Calculator Based on Point System")
 
-        drop_cols = ['SMT Qty', 'Total Boxes', 'VZ VHI GA', 'VZ FIOS GA']
-        df_final.drop(columns=[col for col in drop_cols if col in df_final.columns], inplace=True)
+            df_points = df.copy()
+            for col in ['VZ Perks Rate (%)', 'Premium Unlim (%)', 'VMP']:
+                df_points[col] = df_points[col].astype(str).str.replace('%', '').astype(float)
+                df_points[col] = df_points[col].apply(lambda x: x * 100 if x < 1 else x)
 
-        st.markdown("""
-        <style>
-        .goal-row {
-            font-weight: bold;
-            background-color: #f0f2f6;
-            padding: 8px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 15px;
-        }
-        </style>
-        <div class="goal-row">
-        🎯 <b>Goals:</b> Ratio ≥ 0.5 | SMT GA ≥ 30 | Perks ≥ 56% | VMP ≥ 55% | GP/Smart ≥ $460 | SMB GA ≥ 3 | Premium Unlimited ≥ 65%
-        </div>
-        """, unsafe_allow_html=True)
+            df_points['GP_raw'] = df_points['GP'].astype(float)
 
-        st.subheader("📄 Performance Table with Goals & Totals")
+            def score_smt(x): return 4 if x >= 30 else 3 if x >= 25 else 2 if x >= 20 else 1
+            def score_upgrades(x): return 4 if x >= 65 else 3 if x >= 55 else 2 if x >= 45 else 1
+            def score_perks(x): return 4 if x >= 55 else 3 if x >= 40 else 2 if x >= 25 else 1
+            def score_vmp(x): return 4 if x >= 75 else 3 if x >= 65 else 2 if x >= 55 else 1
+            def score_smb(x): return 4 if x >= 7 else 3 if x >= 5 else 2 if x >= 3 else 1
+            def score_unlimited(x): return 4 if x >= 65 else 3 if x >= 60 else 2 if x >= 55 else 1
+            def score_vhi_fios(row): return 4 if (row['VZ VHI GA'] + row['VZ FIOS GA']) >= 7 else 3 if (row['VZ VHI GA'] + row['VZ FIOS GA']) >= 5 else 2 if (row['VZ VHI GA'] + row['VZ FIOS GA']) >= 3 else 1
+            def score_gp(x): return 4 if x >= 40001 else 3 if x >= 30000 else 2 if x >= 18201 else 1
 
-        display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'SMT GA', 'Perks', 'VMP', 'GP Per Smart', 'GP', 'SMB GA', 'Premium Unlimited', 'VZPH', 'VHI/FIOS', 'Verizon Visa']
-        df_final = df_final[display_columns]
+            df_points['Score SMT'] = df['SMT GA'].apply(score_smt)
+            df_points['Score Upgrades'] = df['Upgrades'].apply(score_upgrades)
+            df_points['Score Perks'] = df_points['VZ Perks Rate (%)'].apply(score_perks)
+            df_points['Score VMP'] = df_points['VMP'].apply(score_vmp)
+            df_points['Score SMB'] = df['SMB GA'].apply(score_smb)
+            df_points['Score Unlimited'] = df_points['Premium Unlim (%)'].apply(score_unlimited)
+            df_points['Score VHI/FIOS'] = df.apply(score_vhi_fios, axis=1)
+            df_points['Score GP'] = df_points['GP_raw'].apply(score_gp)
 
-        def highlight_goals(val, col):
-            if col == 'Ratio': return 'background-color: #d4edda' if val >= 0.5 else 'background-color: #f8d7da'
-            if col == 'SMT GA': return 'background-color: #d4edda' if val >= 30 else 'background-color: #f8d7da'
-            if col == 'Perks': return 'background-color: #d4edda' if val >= 56 else 'background-color: #f8d7da'
-            if col == 'VMP': return 'background-color: #d4edda' if val >= 55 else 'background-color: #f8d7da'
-            if col == 'GP Per Smart':
-                try:
-                    v = float(val.replace('$', '').replace(',', ''))
-                    return 'background-color: #d4edda' if v >= 460 else 'background-color: #f8d7da'
-                except: return ''
-            if col == 'SMB GA': return 'background-color: #d4edda' if val >= 3 else 'background-color: #f8d7da'
-            if col == 'Premium Unlimited': return 'background-color: #d4edda' if val >= 65 else 'background-color: #f8d7da'
-            return ''
+            df_points['Points'] = df_points[[ 
+                'Score SMT', 'Score Upgrades', 'Score Perks', 'Score VMP',
+                'Score SMB', 'Score Unlimited', 'Score VHI/FIOS', 'Score GP'
+            ]].mean(axis=1).round(2)
 
-        styled_df = df_final.style \
-            .format({
-                'Ratio': '{:.2f}',
-                'SMT GA': '{:.2f}',
-                'Perks': '{:.2f}',
-                'VMP': '{:.2f}',
-                'SMB GA': '{:.2f}',
-                'Premium Unlimited': '{:.2f}',
-                'VHI/FIOS': '{:.2f}',
-                'News': '{:.0f}',
-                'Upgrades': '{:.0f}',
-                'VZPH': '{:.0f}',
-                'Verizon Visa': '{:.0f}'
-            }) \
-            .apply(lambda row: [highlight_goals(v, col) for col, v in row.items()], axis=1)
-        st.dataframe(styled_df, use_container_width=True)
+            df_points['Commission %'] = df_points['Points'].apply(
+                lambda p: "30%" if p >= 3.5 else "25%" if p >= 2.5 else "20%" if p >= 1.5 else "18%")
 
-        total_gp = df_grouped['GP'].sum()
-        daily_avg_gp = total_gp / num_days if num_days > 0 else 0
-        num_days_in_month = monthrange(end_date.year, end_date.month)[1]
-        projected_gp = daily_avg_gp * num_days_in_month
+            df_points['Commission Earned'] = df_points.apply(
+                lambda row: f"${row['GP_raw'] * float(row['Commission %'].replace('%', '')) / 100:,.2f}", axis=1)
 
-        st.markdown(f"""
-        ### 📈 Current Month Trend Summary
-        - 💰 **Total Monthly GP:** ${total_gp:,.2f}
-        - 📅 **Average Daily GP:** ${daily_avg_gp:,.2f} (based on {num_days} days)
-        - 📈 **Projected Month-End GP:** ${projected_gp:,.2f} (based on {end_date.strftime('%B')} {end_date.year})
-        """)
-
-        csv = df_final.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="⬇️ Download CSV Report",
-            data=csv,
-            file_name="sales_performance_summary.csv",
-            mime='text/csv'
-        )
+            st.dataframe(df_points[[ 
+                'Employee', 'Score SMT', 'Score Upgrades', 'Score Perks', 'Score VMP',
+                'Score SMB', 'Score Unlimited', 'Score VHI/FIOS', 'Score GP',
+                'Points', 'Commission %', 'Commission Earned'
+            ]], use_container_width=True)
 
     except Exception as e:
-        st.error(f"❌ File processing error: {e}")
+        st.error(f"❌ An error occurred while processing the file:\n{e}")
+
+# --- Persistent Internal Login Button at Bottom Left ---
+st.markdown(
+    """
+    <style>
+    .fixed-button {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        z-index: 100;
+    }
+    </style>
+    <div class="fixed-button">
+        <a href="https://commcalc.streamlit.app/" target="_blank">
+            <button style="font-size:14px; padding:8px 16px; border-radius:6px; background-color:#e0e0e0; color:#000; border:1px solid #999;">
+                Internal Login
+            </button>
+        </a>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
