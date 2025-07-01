@@ -12,11 +12,10 @@ from calendar import monthrange
 upload_dir = "/tmp/uploaded_files"
 os.makedirs(upload_dir, exist_ok=True)
 
-# Streamlit config
 st.set_page_config(page_title="Current Sales Performance", layout="wide")
 
 # ========================== #
-# 🧾 App Title and Instructions
+# 📋 App Title and Instructions
 # ========================== #
 st.title("📊 Current Sales Performance Overview")
 
@@ -33,7 +32,7 @@ st.markdown("""
 """)
 
 # ========================== #
-# 📤 File Upload
+# 📄 File Upload
 # ========================== #
 uploaded_file = st.file_uploader("📂 Upload your sales CSV file", type=["csv"])
 
@@ -68,7 +67,7 @@ if uploaded_file is not None:
         df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
         numeric_cols = ['Perks', 'VMP', 'Premium Unlimited', 'GP', 'News', 'Upgrades',
-                        'SMT GA', 'SMB GA', 'SMT Qty', 'VZ VHI GA', 'VZ FWA GA',
+                        'SMT GA', 'SMB GA', 'SMT Qty', 'VZ FWA GA', 'VZ FIOS GA',
                         'VZPH', 'Verizon Visa']
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', '').str.replace('$', '').str.replace(',', ''), errors='coerce')
@@ -77,42 +76,48 @@ if uploaded_file is not None:
 
         df_grouped = df.groupby('Employee', as_index=False).agg({
             'News': 'sum', 'Upgrades': 'sum', 'SMT GA': 'sum', 'Perks': 'mean', 'VMP': 'mean',
-            'GP': 'sum', 'SMB GA': 'sum', 'Premium Unlimited': 'mean', 'VZ VHI GA': 'sum',
-            'VZ FWA GA': 'sum', 'VZPH': 'sum', 'Verizon Visa': 'sum', 'SMT Qty': 'sum'
+            'GP': 'sum', 'SMB GA': 'sum', 'Premium Unlimited': 'mean', 'VZ FWA GA': 'sum',
+            'VZ FIOS GA': 'sum', 'VZPH': 'sum', 'Verizon Visa': 'sum', 'SMT Qty': 'sum'
         })
 
         df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0, df_grouped['News'] / df_grouped['Upgrades'], 0)
         df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0)
-        df_grouped['VHI/FIOS'] = df_grouped['VZ VHI GA'] + df_grouped['VZ FWA GA']
+        df_grouped['VHI/FIOS'] = df_grouped['VZ FWA GA'] + df_grouped['VZ FIOS GA']
 
-        # ✅ Remove employees with no results
+        today = datetime.today()
+        start_of_month = today.replace(day=1)
+        days_elapsed = (today - start_of_month).days + 1
+        days_in_month = monthrange(today.year, today.month)[1]
+
+        df_grouped['Projected GP'] = df_grouped['GP'] / days_elapsed * days_in_month
+
         df_filtered = df_grouped[(df_grouped.drop(columns='Employee') != 0).any(axis=1)]
 
-        # ➕ Add summary row
         summary_data = df_filtered.drop(columns='Employee').sum(numeric_only=True)
+        summary_data['Projected GP'] = df_filtered['Projected GP'].sum()
         summary_row = pd.DataFrame([summary_data])
         summary_row.insert(0, 'Employee', 'TOTAL')
 
         df_final = pd.concat([df_filtered, summary_row], ignore_index=True)
 
-        # 🔢 Format and Round Columns
         for col in df_final.columns:
             if col == 'Employee':
                 continue
-            elif col in ['GP', 'GP Per Smart']:
+            elif col in ['GP', 'GP Per Smart', 'Projected GP']:
                 df_final[col] = df_final[col].apply(lambda x: f"${float(x):,.2f}" if float(x) != 0 else "$0")
             else:
                 df_final[col] = df_final[col].apply(lambda x: f"{int(x)}" if float(x).is_integer() else f"{round(float(x), 2)}")
 
-        df_final.drop(columns=[col for col in ['SMT Qty', 'VZ VHI GA', 'VZ FWA GA'] if col in df_final.columns], inplace=True)
+        df_final.drop(columns=[col for col in ['SMT Qty', 'VZ FWA GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
 
         # ========================== #
         # 📊 Display Table
         # ========================== #
-        st.markdown("### 🎯 Performance Goals (highlighted where met)")
+        st.markdown("### 🌟 Performance Goals (highlighted where met)")
 
         display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'Perks', 'VMP',
-                           'Premium Unlimited', 'GP', 'GP Per Smart', 'VZPH', 'Verizon Visa', 'VHI/FIOS']
+                           'Premium Unlimited', 'GP', 'Projected GP', 'GP Per Smart',
+                           'VZPH', 'Verizon Visa', 'VHI/FIOS']
         df_final = df_final[display_columns]
 
         def highlight_goals(val, col):
@@ -134,13 +139,8 @@ if uploaded_file is not None:
         st.dataframe(styled_df, use_container_width=True)
 
         # ========================== #
-        # 📈 GP Summary & Projection
+        # 📊 GP Summary
         # ========================== #
-        today = datetime.today()
-        start_of_month = today.replace(day=1)
-        days_elapsed = (today - start_of_month).days + 1
-        days_in_month = monthrange(today.year, today.month)[1]
-
         total_gp = df_filtered['GP'].sum()
         daily_avg_gp = total_gp / days_elapsed
         projected_gp = daily_avg_gp * days_in_month
@@ -154,7 +154,7 @@ if uploaded_file is not None:
 """)
 
         # ========================== #
-        # 📥 Export CSV Button
+        # 📅 Export CSV Button
         # ========================== #
         csv = df_final.to_csv(index=False).encode('utf-8')
         st.download_button(
