@@ -8,7 +8,7 @@ import os
 from datetime import date
 from calendar import monthrange
 
-# Use Streamlit's writable directory
+# Use Streamlit Cloud-compatible temp folder
 upload_dir = "/tmp/uploaded_files"
 os.makedirs(upload_dir, exist_ok=True)
 
@@ -104,13 +104,18 @@ if uploaded_file is not None:
         summary_row.insert(0, 'Employee', 'TOTAL')
         df_final = pd.concat([df_grouped, summary_row], ignore_index=True)
 
-        # Round numeric values
-        for col in df_final.columns:
-            if col != 'Employee' and df_final[col].dtype in [np.float64, np.float32, np.int64, np.int32]:
-                df_final[col] = df_final[col].round(2)
+        # ========================== #
+        # 🔢 Format Columns
+        # ========================== #
 
-        df_final['GP'] = df_final['GP'].apply(lambda x: f"${x:,.2f}" if isinstance(x, (int, float)) else x)
-        df_final['GP Per Smart'] = df_final['GP Per Smart'].apply(lambda x: f"${x:,.2f}" if isinstance(x, (int, float)) else x)
+        # Format GP and GP Per Smart with $ and 2 decimal places
+        df_final['GP'] = df_final['GP'].apply(lambda x: f"${float(x):,.2f}" if float(x) != 0 else "$0")
+        df_final['GP Per Smart'] = df_final['GP Per Smart'].apply(lambda x: f"${float(x):,.2f}" if float(x) != 0 else "$0")
+
+        # Format all other numeric columns as whole numbers (unless they require decimals)
+        for col in df_final.columns:
+            if col not in ['Employee', 'GP', 'GP Per Smart']:
+                df_final[col] = df_final[col].apply(lambda x: int(x) if float(x).is_integer() else round(float(x), 2))
 
         df_final.drop(columns=[col for col in ['SMT Qty', 'VZ VHI GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
 
