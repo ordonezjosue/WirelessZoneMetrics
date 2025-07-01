@@ -5,8 +5,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
-from datetime import date
-from calendar import monthrange
 
 # Use Streamlit Cloud-compatible temp folder
 upload_dir = "/tmp/uploaded_files"
@@ -38,17 +36,6 @@ st.markdown("""
 # 📤 File Upload
 # ========================== #
 uploaded_file = st.file_uploader("📂 Upload your sales CSV file", type=["csv"])
-
-# ========================== #
-# 🗓️ Date Range Input
-# ========================== #
-st.markdown("**Select Reporting Period (for GP Daily Average):**")
-col1, col2 = st.columns(2)
-with col1:
-    start_date = st.date_input("Start Date", date(2025, 5, 1))
-with col2:
-    end_date = st.date_input("End Date", date(2025, 5, 20))
-num_days = (end_date - start_date).days + 1
 
 # ========================== #
 # 🔄 Process File
@@ -98,11 +85,15 @@ if uploaded_file is not None:
         df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0)
         df_grouped['VHI/FIOS'] = df_grouped['VZ VHI GA'] + df_grouped['VZ FIOS GA']
 
+        # ✅ Remove employees with all-zero performance
+        df_filtered = df_grouped[(df_grouped.drop(columns='Employee') != 0).any(axis=1)]
+
         # Add summary row
-        summary_data = df_grouped.drop(columns='Employee').sum(numeric_only=True)
+        summary_data = df_filtered.drop(columns='Employee').sum(numeric_only=True)
         summary_row = pd.DataFrame([summary_data])
         summary_row.insert(0, 'Employee', 'TOTAL')
-        df_final = pd.concat([df_grouped, summary_row], ignore_index=True)
+
+        df_final = pd.concat([df_filtered, summary_row], ignore_index=True)
 
         # ========================== #
         # 🔢 Final Display Formatting
@@ -145,19 +136,16 @@ if uploaded_file is not None:
         st.dataframe(styled_df, use_container_width=True)
 
         # ========================== #
-        # 📈 GP Summary & Projection
+        # 📈 GP Summary
         # ========================== #
-        total_gp = df_grouped['GP'].sum()
-        daily_avg_gp = total_gp / num_days if num_days > 0 else 0
-        num_days_in_month = monthrange(end_date.year, end_date.month)[1]
-        projected_gp = daily_avg_gp * num_days_in_month
+        total_gp = df_filtered['GP'].sum()
 
         st.markdown(f"""
-### 💡 GP Summary & Projection
+### 💡 GP Summary
 
-- **Total GP for Selected Period**: `${total_gp:,.2f}`
-- **Daily Average GP**: `${daily_avg_gp:,.2f}`
-- **Projected Monthly GP**: `${projected_gp:,.2f}`
+- **Total GP**: `${total_gp:,.2f}`
+- **Daily Average GP**: _Not Applicable_
+- **Projected Monthly GP**: _Not Applicable_
 """)
 
         # ========================== #
