@@ -15,6 +15,19 @@ os.makedirs(upload_dir, exist_ok=True)
 st.set_page_config(page_title="Current Sales Performance", layout="wide")
 
 # ========================== #
+# 🎯 Threshold Configuration
+# ========================== #
+st.sidebar.header("🎯 Performance Thresholds")
+
+thresholds = {
+    'Ratio': st.sidebar.number_input("Minimum Ratio (%)", value=150),
+    'GP Per Smart': st.sidebar.number_input("Minimum GP Per Smart ($)", value=100),
+    'Perks': st.sidebar.number_input("Minimum Perks (decimal)", value=0.5),
+    'Premium Unlimited': st.sidebar.number_input("Minimum Premium Unlimited (%)", value=30),
+    'VMP': st.sidebar.number_input("Minimum VMP (decimal)", value=0.3)
+}
+
+# ========================== #
 # 📋 App Title and Instructions
 # ========================== #
 st.title("📊 Current Sales Performance Overview")
@@ -126,7 +139,7 @@ if uploaded_file is not None:
         # ========================== #
         # 📊 Display Table
         # ========================== #
-        st.markdown("### 🌟 Performance Goals (highlighted where met)")
+        st.markdown("### 🌟 Performance Goals (highlighted where thresholds are met)")
 
         display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'Perks', 'VMP',
                            'Premium Unlimited', 'GP', 'Projected GP', 'GP Per Smart',
@@ -138,12 +151,16 @@ if uploaded_file is not None:
                 val_float = float(str(val).strip('$').replace('%', '').replace(',', ''))
             except:
                 return ''
-            if col == 'Ratio' and val_float >= 150:
+            if col == 'Ratio' and val_float >= thresholds['Ratio']:
                 return 'background-color: lightgreen'
-            elif col == 'GP Per Smart' and val_float >= 100:
-                return 'background-color: lightblue'
-            elif col == 'Perks' and val_float >= 0.5:
-                return 'background-color: lightyellow'
+            elif col == 'GP Per Smart' and val_float >= thresholds['GP Per Smart']:
+                return 'background-color: lightgreen'
+            elif col == 'Perks' and val_float >= thresholds['Perks']:
+                return 'background-color: lightgreen'
+            elif col == 'Premium Unlimited' and val_float >= thresholds['Premium Unlimited']:
+                return 'background-color: lightgreen'
+            elif col == 'VMP' and val_float >= thresholds['VMP']:
+                return 'background-color: lightgreen'
             return ''
 
         styled_df = df_final.style.applymap(lambda v: highlight_goals(v, col=col), subset=pd.IndexSlice[:, df_final.columns[1:]])
