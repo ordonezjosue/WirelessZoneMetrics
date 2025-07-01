@@ -8,8 +8,12 @@ import os
 from datetime import date
 from calendar import monthrange
 
+# ✅ Ensure the upload directory exists before using it
+os.makedirs("uploaded_files", exist_ok=True)
+
 # Streamlit page config
 st.set_page_config(page_title="Current Sales Performance", layout="wide")
+
 
 # ========================== #
 # 🧾 App Title and Instructions
