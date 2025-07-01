@@ -91,7 +91,6 @@ if uploaded_file is not None:
         days_elapsed = (today - start_of_month).days + 1
         days_in_month = monthrange(today.year, today.month)[1]
 
-        # ✅ Correct Projected GP based on elapsed time in current month
         df_grouped['Projected GP'] = df_grouped['GP'].apply(
             lambda x: round((x / days_elapsed) * days_in_month, 2)
         )
@@ -114,7 +113,9 @@ if uploaded_file is not None:
             elif col == 'Ratio':
                 df_final[col] = df_final[col].apply(lambda x: f"{float(x) * 100:.0f}%")
             elif col == 'Premium Unlimited':
-                df_final[col] = df_final[col].apply(lambda x: f"{float(x) * 100:.0f}%")
+                df_final[col] = df_final[col].apply(
+                    lambda x: f"{float(x):.0f}%" if float(x) > 1 else f"{float(x) * 100:.0f}%"
+                )
             elif col in ['Perks', 'VMP']:
                 df_final[col] = df_final[col].apply(lambda x: f"{round(float(x), 2)}")
             else:
