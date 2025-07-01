@@ -70,7 +70,9 @@ if uploaded_file is not None:
                         'SMT GA', 'SMB GA', 'SMT Qty', 'VZ FWA GA', 'VZ FIOS GA',
                         'VZPH', 'Verizon Visa']
         for col in numeric_cols:
-            df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', '').str.replace('$', '').str.replace(',', ''), errors='coerce')
+            df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', '', regex=False)
+                                                  .str.replace('$', '', regex=False)
+                                                  .str.replace(',', '', regex=False), errors='coerce')
 
         df.fillna(0, inplace=True)
 
@@ -100,6 +102,7 @@ if uploaded_file is not None:
 
         df_final = pd.concat([df_filtered, summary_row], ignore_index=True)
 
+        # Format for display only
         for col in df_final.columns:
             if col == 'Employee':
                 continue
@@ -108,6 +111,7 @@ if uploaded_file is not None:
             else:
                 df_final[col] = df_final[col].apply(lambda x: f"{int(x)}" if float(x).is_integer() else f"{round(float(x), 2)}")
 
+        # Remove backend-only columns
         df_final.drop(columns=[col for col in ['SMT Qty', 'VZ FWA GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
 
         # ========================== #
