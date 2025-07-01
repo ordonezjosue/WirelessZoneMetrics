@@ -96,7 +96,31 @@ if uploaded_file is not None:
         if missing_cols:
             st.error(f"❌ Missing columns: {', '.join(missing_cols)}")
         else:
-            # --- Rename Columns & Clean Employee Names ---
+            # ======================================================
+            # 🧑‍💼 EMPLOYEE SELECTION DROPDOWN
+            # ======================================================
+
+            all_employees = sorted(df['Employee Full Name'].dropna().unique())
+            selected_employees = st.multiselect(
+                "👥 Select employees to include:",
+                options=all_employees,
+                default=[
+                    name for name in all_employees
+                    if not name.lower().startswith(('rep enc', 'unknown'))
+                ]
+            )
+
+            if not selected_employees:
+                st.warning("⚠️ No employees selected. Please choose at least one to proceed.")
+                st.stop()
+
+            # Filter the DataFrame based on user selection
+            df = df[df['Employee Full Name'].isin(selected_employees)]
+
+            # ======================================================
+            # 🧼 CONTINUE WITH NORMALIZATION & CLEANING
+            # ======================================================
+
             df.rename(columns={
                 'Employee Full Name': 'Employee',
                 'GA': 'News',
@@ -109,15 +133,17 @@ if uploaded_file is not None:
             df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
             df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
-            # --- Combine FIOS & VHI ---
+            # Combine VZ FWA + FIOS into one column
             df['FIOS/VHI'] = df['VZ FWA GA'] + df['VZ FIOS GA']
             df.drop(columns=['VZ FWA GA', 'VZ FIOS GA'], inplace=True)
 
-            # --- Create Full and Filtered Copies ---
+            # Copy full dataset for non-filtered display
             df_display_all = df.copy()
+
+            # Optional: Exclude specific people (can be removed or customized)
             df = df[~df['Employee'].str.lower().isin(['josh ordonez', 'thimotee wiguen'])]
 
-            # --- Convert & Clean Numeric Columns ---
+            # Clean percentage & currency columns
             for col in ['Premium Unlim (%)', 'VMP', 'VZ Perks Rate (%)']:
                 df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', ''), errors='coerce')
                 df_display_all[col] = pd.to_numeric(df_display_all[col].astype(str).str.replace('%', ''), errors='coerce')
@@ -128,7 +154,6 @@ if uploaded_file is not None:
             df['SMT QTY'] = pd.to_numeric(df['SMT QTY'], errors='coerce')
             df_display_all['SMT QTY'] = pd.to_numeric(df_display_all['SMT QTY'], errors='coerce')
 
-            # --- Fill NaNs & Aggregate ---
             numeric_cols = [
                 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'VZ Perks Rate (%)',
                 'Premium Unlim (%)', 'VMP', 'GP', 'SMT QTY', 'FIOS/VHI'
@@ -139,11 +164,11 @@ if uploaded_file is not None:
             df = df.groupby('Employee', as_index=False)[numeric_cols].sum()
             df_display_all = df_display_all.groupby('Employee', as_index=False)[numeric_cols].sum()
 
-            # --- Add Derived Columns ---
             for data in [df, df_display_all]:
                 data['Total GA'] = data['News'] + data['Upgrades']
                 data['Ratio'] = np.where(data['Upgrades'] != 0, data['News'] / data['Upgrades'], 0).round(2)
                 data['GP Per Smart'] = np.where(data['SMT QTY'] != 0, data['GP'] / data['SMT QTY'], 0).round(2)
+
 
 
 # ======================================================
