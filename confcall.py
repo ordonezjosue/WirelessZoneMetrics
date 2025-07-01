@@ -1,11 +1,19 @@
+# ======================================================
+# 🔧 IMPORTS & CONFIGURATION
+# ======================================================
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 
-# --- MUST BE FIRST Streamlit command ---
+# Streamlit page config
 st.set_page_config(page_title="Sales Performance Extractor", layout="wide")
 
-# --- Password Protection ---
+
+# ======================================================
+# 🔐 AUTHENTICATION
+# ======================================================
+
 def check_password():
     if "authenticated" not in st.session_state:
         st.session_state["authenticated"] = False
@@ -20,7 +28,7 @@ def check_password():
             - Automated commission scorecards based on our internal point system
             - Trend insights and GP breakdowns for all employees
 
-            **Please enter the same password we use for Google Drive.**  
+            **Please enter the same password we use for Google Drive.**
             This is to ensure that **company performance data is protected** and only visible to internal team members.
         """)
 
@@ -37,14 +45,21 @@ def check_password():
 
 check_password()
 
-# --- Page Title ---
+
+# ======================================================
+# 📄 HEADER & FILE UPLOAD
+# ======================================================
+
 st.title("📊 Sales Performance Commissions/Results")
 st.markdown("Upload your sales CSV and extract a clean, styled summary with point-based commission insights.")
 
-# --- File Upload ---
 uploaded_file = st.file_uploader("📁 Upload your sales CSV file", type=["csv"])
 
-# --- Power BI Instructions ---
+
+# ======================================================
+# 📘 POWER BI EXPORT INSTRUCTIONS
+# ======================================================
+
 st.markdown("""
 ### 🗓️ How to Export Your Sales CSV from Power BI:
 
@@ -59,13 +74,19 @@ st.markdown("""
 9. Upload the CSV file above ⬇️
 """)
 
-# --- File Handling ---
+
+# ======================================================
+# 📊 DATA CLEANING & TRANSFORMATION
+# ======================================================
+
 if uploaded_file is not None:
     try:
+        # --- Load & Normalize Column Names ---
         df = pd.read_csv(uploaded_file)
         df.columns = [col.strip() for col in df.columns]
         df.rename(columns={'SMT Qty': 'SMT QTY'}, inplace=True)
 
+        # --- Validate Required Columns ---
         required_cols = [
             'Employee Full Name', 'GA', 'Upgrades', 'SMT GA', 'SMB GA',
             'VZ Perks Rate', '(RQ) Consumer SMT Prem Unlim %', 'VZ FWA GA',
@@ -75,6 +96,7 @@ if uploaded_file is not None:
         if missing_cols:
             st.error(f"❌ Missing columns: {', '.join(missing_cols)}")
         else:
+            # --- Rename Columns & Clean Employee Names ---
             df.rename(columns={
                 'Employee Full Name': 'Employee',
                 'GA': 'News',
@@ -87,11 +109,15 @@ if uploaded_file is not None:
             df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
             df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
+            # --- Combine FIOS & VHI ---
             df['FIOS/VHI'] = df['VZ FWA GA'] + df['VZ FIOS GA']
             df.drop(columns=['VZ FWA GA', 'VZ FIOS GA'], inplace=True)
+
+            # --- Create Full and Filtered Copies ---
             df_display_all = df.copy()
             df = df[~df['Employee'].str.lower().isin(['josh ordonez', 'thimotee wiguen'])]
 
+            # --- Convert & Clean Numeric Columns ---
             for col in ['Premium Unlim (%)', 'VMP', 'VZ Perks Rate (%)']:
                 df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', ''), errors='coerce')
                 df_display_all[col] = pd.to_numeric(df_display_all[col].astype(str).str.replace('%', ''), errors='coerce')
@@ -102,6 +128,7 @@ if uploaded_file is not None:
             df['SMT QTY'] = pd.to_numeric(df['SMT QTY'], errors='coerce')
             df_display_all['SMT QTY'] = pd.to_numeric(df_display_all['SMT QTY'], errors='coerce')
 
+            # --- Fill NaNs & Aggregate ---
             numeric_cols = [
                 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'VZ Perks Rate (%)',
                 'Premium Unlim (%)', 'VMP', 'GP', 'SMT QTY', 'FIOS/VHI'
@@ -112,10 +139,16 @@ if uploaded_file is not None:
             df = df.groupby('Employee', as_index=False)[numeric_cols].sum()
             df_display_all = df_display_all.groupby('Employee', as_index=False)[numeric_cols].sum()
 
+            # --- Add Derived Columns ---
             for data in [df, df_display_all]:
                 data['Total GA'] = data['News'] + data['Upgrades']
                 data['Ratio'] = np.where(data['Upgrades'] != 0, data['News'] / data['Upgrades'], 0).round(2)
                 data['GP Per Smart'] = np.where(data['SMT QTY'] != 0, data['GP'] / data['SMT QTY'], 0).round(2)
+
+
+# ======================================================
+# 📋 DISPLAY CLEANED TABLE
+# ======================================================
 
             df_display_all_display = df_display_all.copy()
             df_display_all_display['GP'] = df_display_all['GP'].round(2).apply(lambda x: f"${x:,.2f}")
@@ -144,22 +177,30 @@ if uploaded_file is not None:
                 'GP Per Smart': f"${df_display_all['GP'].sum() / df_display_all['SMT QTY'].sum():,.2f}" if df_display_all['SMT QTY'].sum() > 0 else "$0.00",
                 'FIOS/VHI': df_display_all['FIOS/VHI'].sum().round(2)
             }
+
             df_display_all_display = pd.concat([df_display_all_display, pd.DataFrame([total_row])], ignore_index=True)
 
             st.success("✅ Data processed successfully!")
             st.subheader("📄 Preview of Cleaned & Highlighted Data")
             st.dataframe(df_display_all_display, use_container_width=True)
 
+
+# ======================================================
+# 🧮 COMMISSION CALCULATOR
+# ======================================================
+
             st.divider()
             st.subheader("📈 Commission Calculator Based on Point System")
 
             df_points = df.copy()
+
             for col in ['VZ Perks Rate (%)', 'Premium Unlim (%)', 'VMP']:
                 df_points[col] = df_points[col].astype(str).str.replace('%', '').astype(float)
                 df_points[col] = df_points[col].apply(lambda x: x * 100 if x < 1 else x)
 
             df_points['GP_raw'] = df_points['GP'].astype(float)
 
+            # --- Scoring Rules ---
             def score_smt(x): return 4 if x >= 30 else 3 if x >= 25 else 2 if x >= 20 else 1
             def score_upgrades(x): return 4 if x >= 65 else 3 if x >= 55 else 2 if x >= 45 else 1
             def score_perks(x): return 4 if x >= 55 else 3 if x >= 40 else 2 if x >= 25 else 1
@@ -169,6 +210,7 @@ if uploaded_file is not None:
             def score_vhi_fios(x): return 4 if x >= 7 else 3 if x >= 5 else 2 if x >= 3 else 1
             def score_gp(x): return 4 if x >= 40001 else 3 if x >= 30000 else 2 if x >= 18201 else 1
 
+            # --- Apply Scores ---
             df_points['Score SMT'] = df['SMT GA'].apply(score_smt)
             df_points['Score Upgrades'] = df['Upgrades'].apply(score_upgrades)
             df_points['Score Perks'] = df_points['VZ Perks Rate (%)'].apply(score_perks)
@@ -178,6 +220,7 @@ if uploaded_file is not None:
             df_points['Score VHI/FIOS'] = df_points['FIOS/VHI'].apply(score_vhi_fios)
             df_points['Score GP'] = df_points['GP_raw'].apply(score_gp)
 
+            # --- Compute Final Commission ---
             df_points['Points'] = df_points[[ 
                 'Score SMT', 'Score Upgrades', 'Score Perks', 'Score VMP',
                 'Score SMB', 'Score Unlimited', 'Score VHI/FIOS', 'Score GP'
@@ -199,13 +242,16 @@ if uploaded_file is not None:
             ---
             
             📅 **Coming July 2025**: [Marcus's Commission Calculator](https://marcuscomm.streamlit.app/)
-            
             """)
 
     except Exception as e:
         st.error(f"❌ An error occurred while processing the file:\n{e}")
 
-# --- Persistent Internal Login Button at Bottom Left ---
+
+# ======================================================
+# 🔗 PERSISTENT INTERNAL LOGIN BUTTON
+# ======================================================
+
 st.markdown(
     """
     <style>
