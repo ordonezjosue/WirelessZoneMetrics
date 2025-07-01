@@ -8,7 +8,7 @@ import os
 from datetime import datetime
 from calendar import monthrange
 
-# Use safe upload directory
+# Safe upload directory
 upload_dir = "/tmp/uploaded_files"
 os.makedirs(upload_dir, exist_ok=True)
 
@@ -24,13 +24,12 @@ st.markdown("""
 ### 📁 How to Export Your Sales CSV from Power BI
 
 1. Open **Power BI**
-2. Go to the **WZ Sales Analysis** dashboard
-3. Scroll to **KPI Details**
+2. Navigate to the **WZ Sales Analysis** dashboard
+3. Go to **KPI Details**
 4. Switch to **Employee** view
-5. Click **⋯** on the chart
-6. Choose **Export Data**
-7. Export as `.CSV` with **Summarized data**
-8. Upload the file below ⬇️
+5. Click **⋯** and choose **Export Data**
+6. Export as `.CSV` with **Summarized data**
+7. Upload it below ⬇️
 """)
 
 # ========================== #
@@ -69,7 +68,7 @@ if uploaded_file is not None:
         df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
         numeric_cols = ['Perks', 'VMP', 'Premium Unlimited', 'GP', 'News', 'Upgrades',
-                        'SMT GA', 'SMB GA', 'SMT Qty', 'VZ FWA GA', 'VZ FIOS GA',
+                        'SMT GA', 'SMB GA', 'SMT Qty', 'VZ VHI GA', 'VZ FWA GA',
                         'VZPH', 'Verizon Visa']
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', '').str.replace('$', '').str.replace(',', ''), errors='coerce')
@@ -78,13 +77,13 @@ if uploaded_file is not None:
 
         df_grouped = df.groupby('Employee', as_index=False).agg({
             'News': 'sum', 'Upgrades': 'sum', 'SMT GA': 'sum', 'Perks': 'mean', 'VMP': 'mean',
-            'GP': 'sum', 'SMB GA': 'sum', 'Premium Unlimited': 'mean', 'VZ FWA GA': 'sum',
-            'VZ FIOS GA': 'sum', 'VZPH': 'sum', 'Verizon Visa': 'sum', 'SMT Qty': 'sum'
+            'GP': 'sum', 'SMB GA': 'sum', 'Premium Unlimited': 'mean', 'VZ VHI GA': 'sum',
+            'VZ FWA GA': 'sum', 'VZPH': 'sum', 'Verizon Visa': 'sum', 'SMT Qty': 'sum'
         })
 
         df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0, df_grouped['News'] / df_grouped['Upgrades'], 0)
         df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0)
-        df_grouped['VHI/FIOS'] = df_grouped['VZ FWA GA'] + df_grouped['VZ FIOS GA']
+        df_grouped['VHI/FIOS'] = df_grouped['VZ VHI GA'] + df_grouped['VZ FWA GA']
 
         # ✅ Remove employees with no results
         df_filtered = df_grouped[(df_grouped.drop(columns='Employee') != 0).any(axis=1)]
@@ -105,7 +104,7 @@ if uploaded_file is not None:
             else:
                 df_final[col] = df_final[col].apply(lambda x: f"{int(x)}" if float(x).is_integer() else f"{round(float(x), 2)}")
 
-        df_final.drop(columns=[col for col in ['SMT Qty', 'VZ FWA GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
+        df_final.drop(columns=[col for col in ['SMT Qty', 'VZ VHI GA', 'VZ FWA GA'] if col in df_final.columns], inplace=True)
 
         # ========================== #
         # 📊 Display Table
