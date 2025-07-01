@@ -91,7 +91,10 @@ if uploaded_file is not None:
         days_elapsed = (today - start_of_month).days + 1
         days_in_month = monthrange(today.year, today.month)[1]
 
-        df_grouped['Projected GP'] = df_grouped['GP'] / days_elapsed * days_in_month
+        # ✅ Correct Projected GP based on elapsed time in current month
+        df_grouped['Projected GP'] = df_grouped['GP'].apply(
+            lambda x: round((x / days_elapsed) * days_in_month, 2)
+        )
 
         df_filtered = df_grouped[(df_grouped.drop(columns='Employee') != 0).any(axis=1)]
 
