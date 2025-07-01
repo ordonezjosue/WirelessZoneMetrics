@@ -5,31 +5,32 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
+from datetime import datetime
+from calendar import monthrange
 
-# Use Streamlit Cloud-compatible temp folder
+# Use safe upload directory
 upload_dir = "/tmp/uploaded_files"
 os.makedirs(upload_dir, exist_ok=True)
 
-# Streamlit page config
+# Streamlit config
 st.set_page_config(page_title="Current Sales Performance", layout="wide")
 
 # ========================== #
 # 🧾 App Title and Instructions
 # ========================== #
-st.title("\U0001F4CA Current Sales Performance Overview")
+st.title("📊 Current Sales Performance Overview")
 
 st.markdown("""
-### \U0001F5C2️ How to Export Your Sales CSV from Power BI
+### 📁 How to Export Your Sales CSV from Power BI
 
 1. Open **Power BI**
-2. Navigate to the **WZ Sales Analysis** dashboard
-3. Scroll to the bottom and click **KPI Details**
-4. At the top, select the **Employee** view
-5. Click the **three dots (\u22EF)** in the upper-right of the chart
+2. Go to the **WZ Sales Analysis** dashboard
+3. Scroll to **KPI Details**
+4. Switch to **Employee** view
+5. Click **⋯** on the chart
 6. Choose **Export Data**
-7. Set **Data format** to `Summarized data` and file type to `.CSV`
-8. Download and save the CSV file
-9. Upload it below ⬇️
+7. Export as `.CSV` with **Summarized data**
+8. Upload the file below ⬇️
 """)
 
 # ========================== #
@@ -50,7 +51,7 @@ if uploaded_file is not None:
         df.columns = [col.strip() for col in df.columns]
 
         if 'SMT Qty' not in df.columns:
-            st.error("\u274C 'SMT Qty' column missing.")
+            st.error("❌ 'SMT Qty' column is missing.")
             st.stop()
 
         df.rename(columns={
@@ -68,7 +69,7 @@ if uploaded_file is not None:
         df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
         numeric_cols = ['Perks', 'VMP', 'Premium Unlimited', 'GP', 'News', 'Upgrades',
-                        'SMT GA', 'SMB GA', 'SMT Qty', 'VZ VHI GA', 'VZ FIOS GA',
+                        'SMT GA', 'SMB GA', 'SMT Qty', 'VZ FWA GA', 'VZ FIOS GA',
                         'VZPH', 'Verizon Visa']
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', '').str.replace('$', '').str.replace(',', ''), errors='coerce')
@@ -77,27 +78,25 @@ if uploaded_file is not None:
 
         df_grouped = df.groupby('Employee', as_index=False).agg({
             'News': 'sum', 'Upgrades': 'sum', 'SMT GA': 'sum', 'Perks': 'mean', 'VMP': 'mean',
-            'GP': 'sum', 'SMB GA': 'sum', 'Premium Unlimited': 'mean', 'VZ VHI GA': 'sum',
+            'GP': 'sum', 'SMB GA': 'sum', 'Premium Unlimited': 'mean', 'VZ FWA GA': 'sum',
             'VZ FIOS GA': 'sum', 'VZPH': 'sum', 'Verizon Visa': 'sum', 'SMT Qty': 'sum'
         })
 
         df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0, df_grouped['News'] / df_grouped['Upgrades'], 0)
         df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0)
-        df_grouped['VHI/FIOS'] = df_grouped['VZ VHI GA'] + df_grouped['VZ FIOS GA']
+        df_grouped['VHI/FIOS'] = df_grouped['VZ FWA GA'] + df_grouped['VZ FIOS GA']
 
-        # ✅ Remove employees with all-zero performance
+        # ✅ Remove employees with no results
         df_filtered = df_grouped[(df_grouped.drop(columns='Employee') != 0).any(axis=1)]
 
-        # Add summary row
+        # ➕ Add summary row
         summary_data = df_filtered.drop(columns='Employee').sum(numeric_only=True)
         summary_row = pd.DataFrame([summary_data])
         summary_row.insert(0, 'Employee', 'TOTAL')
 
         df_final = pd.concat([df_filtered, summary_row], ignore_index=True)
 
-        # ========================== #
-        # 🔢 Final Display Formatting
-        # ========================== #
+        # 🔢 Format and Round Columns
         for col in df_final.columns:
             if col == 'Employee':
                 continue
@@ -106,7 +105,7 @@ if uploaded_file is not None:
             else:
                 df_final[col] = df_final[col].apply(lambda x: f"{int(x)}" if float(x).is_integer() else f"{round(float(x), 2)}")
 
-        df_final.drop(columns=[col for col in ['SMT Qty', 'VZ VHI GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
+        df_final.drop(columns=[col for col in ['SMT Qty', 'VZ FWA GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
 
         # ========================== #
         # 📊 Display Table
@@ -136,16 +135,23 @@ if uploaded_file is not None:
         st.dataframe(styled_df, use_container_width=True)
 
         # ========================== #
-        # 📈 GP Summary
+        # 📈 GP Summary & Projection
         # ========================== #
+        today = datetime.today()
+        start_of_month = today.replace(day=1)
+        days_elapsed = (today - start_of_month).days + 1
+        days_in_month = monthrange(today.year, today.month)[1]
+
         total_gp = df_filtered['GP'].sum()
+        daily_avg_gp = total_gp / days_elapsed
+        projected_gp = daily_avg_gp * days_in_month
 
         st.markdown(f"""
 ### 💡 GP Summary
 
 - **Total GP**: `${total_gp:,.2f}`
-- **Daily Average GP**: _Not Applicable_
-- **Projected Monthly GP**: _Not Applicable_
+- **Daily Average GP** (as of {today.strftime('%B %d')}): `${daily_avg_gp:,.2f}`
+- **Projected Monthly GP** (for {today.strftime('%B')}): `${projected_gp:,.2f}`
 """)
 
         # ========================== #
