@@ -5,7 +5,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
-from io import BytesIO
 from datetime import date
 from calendar import monthrange
 
@@ -46,16 +45,6 @@ if csv_files:
     if selected_csv and not uploaded_file:
         uploaded_file = open(os.path.join("uploaded_files", selected_csv), "rb")
 
-# RQ Excel file upload
-rq_file = st.file_uploader("📄 Upload the RQ Excel file", type=["xlsx"])
-
-# Previously uploaded RQ file
-rq_files = [f for f in os.listdir("uploaded_files") if f.endswith(".xlsx")]
-if rq_files:
-    selected_rq = st.selectbox("📁 Or select a previously uploaded RQ file:", rq_files)
-    if selected_rq and not rq_file:
-        rq_file = open(os.path.join("uploaded_files", selected_rq), "rb")
-
 # ========================== #
 # 🗓️ Date Range Input
 # ========================== #
@@ -73,10 +62,6 @@ num_days = (end_date - start_date).days + 1
 if uploaded_file is not None:
     with open(os.path.join("uploaded_files", uploaded_file.name), "wb") as f:
         f.write(uploaded_file.getbuffer())
-
-if rq_file is not None:
-    with open(os.path.join("uploaded_files", rq_file.name), "wb") as f:
-        f.write(rq_file.getbuffer())
 
 # ========================== #
 # 📊 Data Cleaning & Processing
@@ -103,7 +88,9 @@ try:
     df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
     df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
-    numeric_cols = ['Perks', 'VMP', 'Premium Unlimited', 'GP', 'News', 'Upgrades', 'SMT GA', 'SMB GA', 'SMT Qty', 'VZ VHI GA', 'VZ FIOS GA', 'VZPH', 'Verizon Visa']
+    numeric_cols = ['Perks', 'VMP', 'Premium Unlimited', 'GP', 'News', 'Upgrades',
+                    'SMT GA', 'SMB GA', 'SMT Qty', 'VZ VHI GA', 'VZ FIOS GA',
+                    'VZPH', 'Verizon Visa']
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', '').str.replace('$', '').str.replace(',', ''), errors='coerce')
 
@@ -120,34 +107,11 @@ try:
     df_grouped['VHI/FIOS'] = df_grouped['VZ VHI GA'] + df_grouped['VZ FIOS GA']
 
     # ========================== #
-    # 📥 Merge with RQ Excel File
-    # ========================== #
-    if rq_file is not None:
-        try:
-            rq_excel = pd.ExcelFile(rq_file)
-            rq_df = rq_excel.parse(rq_excel.sheet_names[0])
-            rq_data = rq_df.iloc[2:].copy()
-            rq_data.columns = rq_df.iloc[1]
-
-            rq_filtered = rq_data[['Employee Name', '(Q) FiOS Sales', '(Q) 5G Consumer Internet']].copy()
-            rq_filtered.columns = ['Employee', 'FiOS Sales', '5G Internet']
-            rq_filtered['Employee'] = rq_filtered['Employee'].apply(lambda name: " ".join(sorted(str(name).strip().split())).title())
-            rq_filtered['FiOS Sales'] = pd.to_numeric(rq_filtered['FiOS Sales'], errors='coerce').fillna(0)
-            rq_filtered['5G Internet'] = pd.to_numeric(rq_filtered['5G Internet'], errors='coerce').fillna(0)
-            rq_filtered['VHI/FIOS'] = rq_filtered['FiOS Sales'] + rq_filtered['5G Internet']
-
-            df_grouped.drop(columns=['VHI/FIOS'], inplace=True, errors='ignore')
-            df_grouped = pd.merge(df_grouped, rq_filtered[['Employee', 'VHI/FIOS']], on='Employee', how='left')
-            df_grouped['VHI/FIOS'] = df_grouped['VHI/FIOS'].fillna(0)
-            st.success("RQ File merged. VHI/FIOS updated.")
-
-        except Exception as rq_error:
-            st.warning(f"⚠️ RQ File error: {rq_error}")
-
-    # ========================== #
     # ➕ Add Summary Row
     # ========================== #
-    summary_row = pd.DataFrame({...})  # (keep your summary row code here)
+    summary_data = df_grouped.drop(columns='Employee').sum(numeric_only=True)
+    summary_row = pd.DataFrame([summary_data])
+    summary_row.insert(0, 'Employee', 'TOTAL')
     df_final = pd.concat([df_grouped, summary_row], ignore_index=True)
 
     # ========================== #
@@ -160,18 +124,31 @@ try:
     df_final['GP'] = df_final['GP'].apply(lambda x: f"${x:,.2f}" if isinstance(x, (int, float)) else x)
     df_final['GP Per Smart'] = df_final['GP Per Smart'].apply(lambda x: f"${x:,.2f}" if isinstance(x, (int, float)) else x)
 
-    df_final.drop(columns=[col for col in ['SMT Qty', 'Total Boxes', 'VZ VHI GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
+    df_final.drop(columns=[col for col in ['SMT Qty', 'VZ VHI GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
 
     # ========================== #
     # 🧮 Display Table with Goals
     # ========================== #
-    st.markdown("""...""", unsafe_allow_html=True)  # goal banner
+    st.markdown("### 🎯 Performance Goals (highlighted where met)")
 
-    display_columns = [...]
+    display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'Perks', 'VMP',
+                       'Premium Unlimited', 'GP', 'GP Per Smart', 'VZPH', 'Verizon Visa', 'VHI/FIOS']
     df_final = df_final[display_columns]
 
-    def highlight_goals(val, col): ...
-    styled_df = df_final.style.format(...).apply(...)
+    def highlight_goals(val, col):
+        try:
+            val_float = float(str(val).strip('$').replace(',', ''))
+        except:
+            return ''
+        if col == 'Ratio' and val_float >= 1.5:
+            return 'background-color: lightgreen'
+        elif col == 'GP Per Smart' and val_float >= 100:
+            return 'background-color: lightblue'
+        elif col == 'Perks' and val_float >= 50:
+            return 'background-color: lightyellow'
+        return ''
+
+    styled_df = df_final.style.format(na_rep="").applymap(lambda v: highlight_goals(v, col=col), subset=pd.IndexSlice[:, df_final.columns[1:]])
 
     st.subheader("📄 Performance Table with Goals & Totals")
     st.dataframe(styled_df, use_container_width=True)
@@ -184,7 +161,13 @@ try:
     num_days_in_month = monthrange(end_date.year, end_date.month)[1]
     projected_gp = daily_avg_gp * num_days_in_month
 
-    st.markdown(f"""...""")
+    st.markdown(f"""
+### 💡 GP Summary & Projection
+
+- **Total GP for Selected Period**: `${total_gp:,.2f}`
+- **Daily Average GP**: `${daily_avg_gp:,.2f}`
+- **Projected Monthly GP**: `${projected_gp:,.2f}`
+""")
 
     # ========================== #
     # 📥 Export CSV Button
