@@ -94,32 +94,42 @@ if uploaded_file is not None:
             'VZ FIOS GA': 'sum', 'VZPH': 'sum', 'Verizon Visa': 'sum', 'SMT Qty': 'sum'
         })
 
-        df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0, df_grouped['News'] / df_grouped['Upgrades'], 0).round(2)
-        df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0).round(2)
+        df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0, df_grouped['News'] / df_grouped['Upgrades'], 0)
+        df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0)
         df_grouped['VHI/FIOS'] = df_grouped['VZ VHI GA'] + df_grouped['VZ FIOS GA']
 
-        # Summary row
+        # Add summary row
         summary_data = df_grouped.drop(columns='Employee').sum(numeric_only=True)
         summary_row = pd.DataFrame([summary_data])
         summary_row.insert(0, 'Employee', 'TOTAL')
         df_final = pd.concat([df_grouped, summary_row], ignore_index=True)
 
         # ========================== #
-        # 🔢 Format Columns
+        # 🔢 Format Columns Cleanly
         # ========================== #
 
-        # Format GP and GP Per Smart with $ and 2 decimal places
+        # Format currency fields
         df_final['GP'] = df_final['GP'].apply(lambda x: f"${float(x):,.2f}" if float(x) != 0 else "$0")
         df_final['GP Per Smart'] = df_final['GP Per Smart'].apply(lambda x: f"${float(x):,.2f}" if float(x) != 0 else "$0")
 
-        # Format all other numeric columns as whole numbers (unless they require decimals)
+        # Format all other numerics: whole numbers unless decimals are meaningful
         for col in df_final.columns:
             if col not in ['Employee', 'GP', 'GP Per Smart']:
-                df_final[col] = df_final[col].apply(lambda x: int(x) if float(x).is_integer() else round(float(x), 2))
+                def smart_format(val):
+                    val = float(val)
+                    if val == 0:
+                        return 0
+                    elif val.is_integer():
+                        return int(val)
+                    else:
+                        return round(val, 2)
+                df_final[col] = df_final[col].apply(smart_format)
 
         df_final.drop(columns=[col for col in ['SMT Qty', 'VZ VHI GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
 
-        # Display
+        # ========================== #
+        # 📊 Display Table
+        # ========================== #
         st.markdown("### 🎯 Performance Goals (highlighted where met)")
 
         display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'Perks', 'VMP',
@@ -144,7 +154,9 @@ if uploaded_file is not None:
         st.subheader("📄 Performance Table with Goals & Totals")
         st.dataframe(styled_df, use_container_width=True)
 
-        # GP Projection
+        # ========================== #
+        # 📈 GP Summary & Projection
+        # ========================== #
         total_gp = df_grouped['GP'].sum()
         daily_avg_gp = total_gp / num_days if num_days > 0 else 0
         num_days_in_month = monthrange(end_date.year, end_date.month)[1]
@@ -158,7 +170,9 @@ if uploaded_file is not None:
 - **Projected Monthly GP**: `${projected_gp:,.2f}`
 """)
 
-        # Export CSV
+        # ========================== #
+        # 📥 Export CSV Button
+        # ========================== #
         csv = df_final.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="⬇️ Download CSV Report",
