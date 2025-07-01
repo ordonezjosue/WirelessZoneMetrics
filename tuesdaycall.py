@@ -105,16 +105,21 @@ if uploaded_file is not None:
 
         df_final = pd.concat([df_filtered, summary_row], ignore_index=True)
 
-        # Format for display only
+        # ✅ Format columns appropriately
         for col in df_final.columns:
             if col == 'Employee':
                 continue
             elif col in ['GP', 'GP Per Smart', 'Projected GP']:
                 df_final[col] = df_final[col].apply(lambda x: f"${float(x):,.2f}" if float(x) != 0 else "$0")
+            elif col == 'Ratio':
+                df_final[col] = df_final[col].apply(lambda x: f"{float(x) * 100:.0f}%")
+            elif col == 'Premium Unlimited':
+                df_final[col] = df_final[col].apply(lambda x: f"{float(x) * 100:.0f}%")
+            elif col in ['Perks', 'VMP']:
+                df_final[col] = df_final[col].apply(lambda x: f"{round(float(x), 2)}")
             else:
                 df_final[col] = df_final[col].apply(lambda x: f"{int(x)}" if float(x).is_integer() else f"{round(float(x), 2)}")
 
-        # Remove backend-only columns
         df_final.drop(columns=[col for col in ['SMT Qty', 'VZ FWA GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
 
         # ========================== #
@@ -129,14 +134,14 @@ if uploaded_file is not None:
 
         def highlight_goals(val, col):
             try:
-                val_float = float(str(val).strip('$').replace(',', ''))
+                val_float = float(str(val).strip('$').replace('%', '').replace(',', ''))
             except:
                 return ''
-            if col == 'Ratio' and val_float >= 1.5:
+            if col == 'Ratio' and val_float >= 150:
                 return 'background-color: lightgreen'
             elif col == 'GP Per Smart' and val_float >= 100:
                 return 'background-color: lightblue'
-            elif col == 'Perks' and val_float >= 50:
+            elif col == 'Perks' and val_float >= 0.5:
                 return 'background-color: lightyellow'
             return ''
 
