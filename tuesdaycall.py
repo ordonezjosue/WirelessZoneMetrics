@@ -105,25 +105,15 @@ if uploaded_file is not None:
         df_final = pd.concat([df_grouped, summary_row], ignore_index=True)
 
         # ========================== #
-        # 🔢 Format Columns Cleanly
+        # 🔢 Final Display Formatting
         # ========================== #
-
-        # Format currency fields
-        df_final['GP'] = df_final['GP'].apply(lambda x: f"${float(x):,.2f}" if float(x) != 0 else "$0")
-        df_final['GP Per Smart'] = df_final['GP Per Smart'].apply(lambda x: f"${float(x):,.2f}" if float(x) != 0 else "$0")
-
-        # Format all other numerics: whole numbers unless decimals are meaningful
         for col in df_final.columns:
-            if col not in ['Employee', 'GP', 'GP Per Smart']:
-                def smart_format(val):
-                    val = float(val)
-                    if val == 0:
-                        return 0
-                    elif val.is_integer():
-                        return int(val)
-                    else:
-                        return round(val, 2)
-                df_final[col] = df_final[col].apply(smart_format)
+            if col == 'Employee':
+                continue
+            elif col in ['GP', 'GP Per Smart']:
+                df_final[col] = df_final[col].apply(lambda x: f"${float(x):,.2f}" if float(x) != 0 else "$0")
+            else:
+                df_final[col] = df_final[col].apply(lambda x: f"{int(x)}" if float(x).is_integer() else f"{round(float(x), 2)}")
 
         df_final.drop(columns=[col for col in ['SMT Qty', 'VZ VHI GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
 
@@ -149,7 +139,7 @@ if uploaded_file is not None:
                 return 'background-color: lightyellow'
             return ''
 
-        styled_df = df_final.style.format(na_rep="").applymap(lambda v: highlight_goals(v, col=col), subset=pd.IndexSlice[:, df_final.columns[1:]])
+        styled_df = df_final.style.applymap(lambda v: highlight_goals(v, col=col), subset=pd.IndexSlice[:, df_final.columns[1:]])
 
         st.subheader("📄 Performance Table with Goals & Totals")
         st.dataframe(styled_df, use_container_width=True)
