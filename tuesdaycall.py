@@ -104,33 +104,13 @@ if uploaded_file is not None:
 
         df_final = pd.concat([df_filtered, summary_row], ignore_index=True)
 
-        # ✅ Format columns appropriately
-        for col in df_final.columns:
-            if col == 'Employee':
-                continue
-            elif col in ['GP', 'GP Per Smart', 'Projected GP']:
-                df_final[col] = df_final[col].apply(lambda x: f"${float(x):,.2f}" if float(x) != 0 else "$0")
-            elif col == 'Ratio':
-                df_final[col] = df_final[col].apply(lambda x: f"{float(x) * 100:.0f}%")
-            elif col == 'Premium Unlimited':
-                df_final[col] = df_final[col].apply(
-                    lambda x: f"{float(x):.0f}%" if float(x) > 1 else f"{float(x) * 100:.0f}%"
-                )
-            elif col in ['Perks', 'VMP']:
-                df_final[col] = df_final[col].apply(lambda x: f"{round(float(x), 2)}")
-            else:
-                df_final[col] = df_final[col].apply(lambda x: f"{int(x)}" if float(x).is_integer() else f"{round(float(x), 2)}")
-
-        df_final.drop(columns=[col for col in ['SMT Qty', 'VZ FWA GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
-
         # ========================== #
         # 📊 Display Table
         # ========================== #
-        # st.markdown("### 🌟 Performance Goals (highlighted where thresholds are met)")
 
         display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'Perks', 'VMP',
-                           'Premium Unlimited', 'GP', 'Projected GP', 'GP Per Smart',
-                           'VZPH', 'Verizon Visa', 'VHI/FIOS']
+                           'Premium Unlimited', 'GP Per Smart', 'GP', 'Projected GP',
+                           'VHI/FIOS', 'VZPH', 'Verizon Visa']
         df_final = df_final[display_columns]
 
         def highlight_goals(val, col):
@@ -138,22 +118,49 @@ if uploaded_file is not None:
                 val_float = float(str(val).strip('$').replace('%', '').replace(',', ''))
             except:
                 return ''
-            if col == 'Ratio' and val_float >= thresholds['Ratio']:
+            if col == 'Ratio' and val_float >= 1.0:
                 return 'background-color: lightgreen'
-            elif col == 'GP Per Smart' and val_float >= thresholds['GP Per Smart']:
+            elif col == 'GP Per Smart' and val_float >= 100:
                 return 'background-color: lightgreen'
-            elif col == 'Perks' and val_float >= thresholds['Perks']:
+            elif col == 'Perks' and val_float >= 0.15:
                 return 'background-color: lightgreen'
-            elif col == 'Premium Unlimited' and val_float >= thresholds['Premium Unlimited']:
+            elif col == 'Premium Unlimited' and val_float >= 30:
                 return 'background-color: lightgreen'
-            elif col == 'VMP' and val_float >= thresholds['VMP']:
+            elif col == 'VMP' and val_float >= 30:
                 return 'background-color: lightgreen'
             return ''
 
         styled_df = df_final.style.applymap(lambda v: highlight_goals(v, col=col), subset=pd.IndexSlice[:, df_final.columns[1:]])
 
+        # Optional: Bold TOTAL row
+        styled_df = styled_df.apply(
+            lambda row: ['font-weight: bold' if row['Employee'] == 'TOTAL' else '' for _ in row],
+            axis=1
+        )
+
         st.subheader("📄 Performance Table with Goals & Totals")
         st.dataframe(styled_df, use_container_width=True)
+
+        # ========================== #
+        # 💡 Format Adjustments
+        # ========================== #
+        for col in df_final.columns:
+            if col == 'Employee':
+                continue
+            elif col == 'Ratio':
+                df_final[col] = df_final[col].apply(lambda x: f"{float(x):.2f}")
+            elif col == 'VMP':
+                df_final[col] = df_final[col].apply(lambda x: f"{float(x) * 100:.0f}%")
+            elif col == 'Perks':
+                df_final[col] = df_final[col].apply(lambda x: f"{round(float(x), 2)}")
+            elif col in ['GP', 'GP Per Smart', 'Projected GP']:
+                df_final[col] = df_final[col].apply(lambda x: f"${float(x):,.2f}" if float(x) != 0 else "$0")
+            elif col == 'Premium Unlimited':
+                df_final[col] = df_final[col].apply(
+                    lambda x: f"{float(x):.0f}%" if float(x) > 1 else f"{float(x) * 100:.0f}%"
+                )
+            else:
+                df_final[col] = df_final[col].apply(lambda x: f"{int(x)}" if float(x).is_integer() else f"{round(float(x), 2)}")
 
         # ========================== #
         # 📊 GP Summary
