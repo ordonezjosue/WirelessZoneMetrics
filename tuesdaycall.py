@@ -126,7 +126,7 @@ if uploaded_file is not None:
         # ========================== #
         # 📊 Display Table
         # ========================== #
-        st.markdown("### 🌟 Performance Goals (highlighted where thresholds are met)")
+        # st.markdown("### 🌟 Performance Goals (highlighted where thresholds are met)")
 
         display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'Perks', 'VMP',
                            'Premium Unlimited', 'GP', 'Projected GP', 'GP Per Smart',
