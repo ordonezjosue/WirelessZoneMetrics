@@ -15,19 +15,6 @@ os.makedirs(upload_dir, exist_ok=True)
 st.set_page_config(page_title="Current Sales Performance", layout="wide")
 
 # ========================== #
-# 🎯 Threshold Configuration
-# ========================== #
-st.sidebar.header("🎯 Performance Thresholds")
-
-thresholds = {
-    'Ratio': st.sidebar.number_input("Minimum Ratio (%)", value=150),
-    'GP Per Smart': st.sidebar.number_input("Minimum GP Per Smart ($)", value=100),
-    'Perks': st.sidebar.number_input("Minimum Perks (decimal)", value=0.5),
-    'Premium Unlimited': st.sidebar.number_input("Minimum Premium Unlimited (%)", value=30),
-    'VMP': st.sidebar.number_input("Minimum VMP (decimal)", value=0.3)
-}
-
-# ========================== #
 # 📋 App Title and Instructions
 # ========================== #
 st.title("📊 Current Sales Performance Overview")
