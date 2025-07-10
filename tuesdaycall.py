@@ -107,11 +107,24 @@ if uploaded_file is not None:
         # Filter out employees with all zeros
         df_filtered = df_grouped[(df_grouped.drop(columns='Employee') != 0).any(axis=1)]
 
-        # Add total row
+        # Add TOTAL row with mixed sums and averages
+        average_cols = ['Ratio', 'Perks', 'VMP', 'Premium Unlimited', 'GP Per Smart']
+
+        # Calculate sum for all numeric columns
         summary_data = df_filtered.drop(columns='Employee').sum(numeric_only=True)
+
+        # Override specific columns with their average
+        for col in average_cols:
+            if col in df_filtered.columns:
+                summary_data[col] = df_filtered[col].mean()
+
+        # Ensure Projected GP is summed, not averaged
         summary_data['Projected GP'] = df_filtered['Projected GP'].sum()
+
+        # Insert TOTAL row
         summary_row = pd.DataFrame([summary_data])
         summary_row.insert(0, 'Employee', 'TOTAL')
+
 
         df_final = pd.concat([df_filtered, summary_row], ignore_index=True)
 
