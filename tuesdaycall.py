@@ -49,17 +49,26 @@ if uploaded_file is not None:
         df = pd.read_csv(file_path)
         df.columns = [col.strip() for col in df.columns]
 
-        # Verify essential column exists
-        if 'SMT Qty' not in df.columns:
-            st.error("❌ 'SMT Qty' column is missing.")
+        # ✅ Combine VZ Premium % and CCRS SMB Prem Unl % into one column
+        def parse_percent(val):
+            try:
+                return float(str(val).strip('%'))
+            except:
+                return np.nan
+
+        if 'VZ Premium %' in df.columns and '(CCRS) SMB Prem Unl %' in df.columns:
+            df['VZ Premium %'] = df['VZ Premium %'].apply(parse_percent)
+            df['(CCRS) SMB Prem Unl %'] = df['(CCRS) SMB Prem Unl %'].apply(parse_percent)
+            df['Premium Unlimited'] = df[['VZ Premium %', '(CCRS) SMB Prem Unl %']].mean(axis=1)
+        else:
+            st.error("❌ Required columns 'VZ Premium %' and/or '(CCRS) SMB Prem Unl %' are missing.")
             st.stop()
 
-        # Rename columns
+        # ✅ Rename columns (excluding Premium Unlimited, already handled)
         df.rename(columns={
             'Employee Full Name': 'Employee',
             'GA': 'News',
             'VZ Perks Rate': 'Perks',
-            '(RQ) Consumer SMT Prem Unlim %': 'Premium Unlimited',
             'VMP Take Rate': 'VMP',
             'VZPH Qty': 'VZPH',
             'VZ CC QTY': 'Verizon Visa'
@@ -107,24 +116,18 @@ if uploaded_file is not None:
         # Filter out employees with all zeros
         df_filtered = df_grouped[(df_grouped.drop(columns='Employee') != 0).any(axis=1)]
 
-        # Add TOTAL row with mixed sums and averages
+        # Add TOTAL row
         average_cols = ['Ratio', 'Perks', 'VMP', 'Premium Unlimited', 'GP Per Smart']
-
-        # Calculate sum for all numeric columns
         summary_data = df_filtered.drop(columns='Employee').sum(numeric_only=True)
 
-        # Override specific columns with their average
         for col in average_cols:
             if col in df_filtered.columns:
                 summary_data[col] = df_filtered[col].mean()
 
-        # Ensure Projected GP is summed, not averaged
         summary_data['Projected GP'] = df_filtered['Projected GP'].sum()
 
-        # Insert TOTAL row
         summary_row = pd.DataFrame([summary_data])
         summary_row.insert(0, 'Employee', 'TOTAL')
-
 
         df_final = pd.concat([df_filtered, summary_row], ignore_index=True)
 
@@ -145,12 +148,9 @@ if uploaded_file is not None:
             else:
                 df_final[col] = df_final[col].apply(lambda x: f"{int(float(x))}" if float(x).is_integer() else f"{round(float(x), 2)}")
 
-        # Drop internal-use columns
         df_final.drop(columns=[col for col in ['SMT Qty', 'VZ FWA GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
 
-        # ========================== #
-        # 🎯 Threshold Settings
-        # ========================== #
+        # Thresholds
         thresholds = {
             'Ratio': {'value': 50, 'higher_is_better': True},
             'SMB GA': {'value': 3, 'higher_is_better': True},
@@ -164,9 +164,6 @@ if uploaded_file is not None:
             'Verizon Visa': {'value': 1, 'higher_is_better': True}
         }
 
-        # ========================== #
-        # 📊 Display Table
-        # ========================== #
         display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'SMT GA',
                            'Perks', 'VMP', 'Premium Unlimited', 'GP',
                            'GP Per Smart', 'SMB GA', 'VZPH', 'Verizon Visa', 'VHI/FIOS', 'Projected GP']
@@ -198,9 +195,7 @@ if uploaded_file is not None:
         st.subheader("📄 Performance Table with Goals & Totals")
         st.dataframe(styled_df, use_container_width=True)
 
-        # ========================== #
-        # 📊 GP Summary
-        # ========================== #
+        # GP Summary
         total_gp = df_filtered['GP'].sum()
         daily_avg_gp = total_gp / days_elapsed
         projected_gp = daily_avg_gp * days_in_month
@@ -213,9 +208,7 @@ if uploaded_file is not None:
 - **Projected Monthly GP** (for {today.strftime('%B')}): `${projected_gp:,.2f}`
 """)
 
-        # ========================== #
-        # 📅 Export CSV Button
-        # ========================== #
+        # Export button
         csv = df_final.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="⬇️ Download CSV Report",
