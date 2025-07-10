@@ -153,6 +153,7 @@ if uploaded_file is not None:
         # ========================== #
         thresholds = {
             'Ratio': {'value': 50, 'higher_is_better': True},
+            'SMG GA': {'value': 3, 'higher_is_better': True},
             'Perks': {'value': 56, 'higher_is_better': True},
             'VMP': {'value': 55, 'higher_is_better': True},
             'Premium Unlimited': {'value': 65, 'higher_is_better': True},
