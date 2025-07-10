@@ -41,6 +41,7 @@ uploaded_file = st.file_uploader("📂 Upload your sales CSV file", type=["csv"]
 # ========================== #
 if uploaded_file is not None:
     try:
+        # Save uploaded file
         file_path = os.path.join(upload_dir, uploaded_file.name)
         with open(file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
@@ -48,10 +49,12 @@ if uploaded_file is not None:
         df = pd.read_csv(file_path)
         df.columns = [col.strip() for col in df.columns]
 
+        # Verify essential column exists
         if 'SMT Qty' not in df.columns:
             st.error("❌ 'SMT Qty' column is missing.")
             st.stop()
 
+        # Rename columns
         df.rename(columns={
             'Employee Full Name': 'Employee',
             'GA': 'News',
@@ -62,30 +65,36 @@ if uploaded_file is not None:
             'VZ CC QTY': 'Verizon Visa'
         }, inplace=True)
 
+        # Clean employee names
         df = df[df['Employee'].astype(str).str.split().str.len() >= 2]
         df = df[~df['Employee'].str.lower().isin(['rep enc', 'unknown'])]
         df['Employee'] = df['Employee'].apply(lambda name: " ".join(sorted(name.strip().split())).title())
 
+        # Clean numeric columns
         numeric_cols = ['Perks', 'VMP', 'Premium Unlimited', 'GP', 'News', 'Upgrades',
                         'SMT GA', 'SMB GA', 'SMT Qty', 'VZ FWA GA', 'VZ FIOS GA',
                         'VZPH', 'Verizon Visa']
         for col in numeric_cols:
-            df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', '', regex=False)
-                                                  .str.replace('$', '', regex=False)
-                                                  .str.replace(',', '', regex=False), errors='coerce')
+            df[col] = pd.to_numeric(df[col].astype(str)
+                                    .str.replace('%', '', regex=False)
+                                    .str.replace('$', '', regex=False)
+                                    .str.replace(',', '', regex=False), errors='coerce')
 
         df.fillna(0, inplace=True)
 
+        # Group data
         df_grouped = df.groupby('Employee', as_index=False).agg({
             'News': 'sum', 'Upgrades': 'sum', 'SMT GA': 'sum', 'Perks': 'mean', 'VMP': 'mean',
             'GP': 'sum', 'SMB GA': 'sum', 'Premium Unlimited': 'mean', 'VZ FWA GA': 'sum',
             'VZ FIOS GA': 'sum', 'VZPH': 'sum', 'Verizon Visa': 'sum', 'SMT Qty': 'sum'
         })
 
-        df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0, df_grouped['News'] / df_grouped['Upgrades'], 0)
+        # Derived metrics
+        df_grouped['Ratio'] = np.where(df_grouped['Upgrades'] != 0, df_grouped['News'] / df_grouped['Upgrades'] * 100, 0)
         df_grouped['GP Per Smart'] = np.where(df_grouped['SMT Qty'] != 0, df_grouped['GP'] / df_grouped['SMT Qty'], 0)
         df_grouped['VHI/FIOS'] = df_grouped['VZ FWA GA'] + df_grouped['VZ FIOS GA']
 
+        # Projection logic
         today = datetime.today()
         start_of_month = today.replace(day=1)
         days_elapsed = (today - start_of_month).days + 1
@@ -95,8 +104,10 @@ if uploaded_file is not None:
             lambda x: round((x / days_elapsed) * days_in_month, 2)
         )
 
+        # Filter out employees with all zeros
         df_filtered = df_grouped[(df_grouped.drop(columns='Employee') != 0).any(axis=1)]
 
+        # Add total row
         summary_data = df_filtered.drop(columns='Employee').sum(numeric_only=True)
         summary_data['Projected GP'] = df_filtered['Projected GP'].sum()
         summary_row = pd.DataFrame([summary_data])
@@ -104,14 +115,14 @@ if uploaded_file is not None:
 
         df_final = pd.concat([df_filtered, summary_row], ignore_index=True)
 
-        # ✅ Format columns appropriately
+        # Format output
         for col in df_final.columns:
             if col == 'Employee':
                 continue
             elif col in ['GP', 'GP Per Smart', 'Projected GP']:
                 df_final[col] = df_final[col].apply(lambda x: f"${float(x):,.2f}" if float(x) != 0 else "$0")
             elif col == 'Ratio':
-                df_final[col] = df_final[col].apply(lambda x: f"{float(x) * 100:.0f}%")
+                df_final[col] = df_final[col].apply(lambda x: f"{float(x):.0f}%")
             elif col == 'Premium Unlimited':
                 df_final[col] = df_final[col].apply(
                     lambda x: f"{float(x):.0f}%" if float(x) > 1 else f"{float(x) * 100:.0f}%"
@@ -119,38 +130,56 @@ if uploaded_file is not None:
             elif col in ['Perks', 'VMP']:
                 df_final[col] = df_final[col].apply(lambda x: f"{round(float(x), 2)}")
             else:
-                df_final[col] = df_final[col].apply(lambda x: f"{int(x)}" if float(x).is_integer() else f"{round(float(x), 2)}")
+                df_final[col] = df_final[col].apply(lambda x: f"{int(float(x))}" if float(x).is_integer() else f"{round(float(x), 2)}")
 
+        # Drop internal-use columns
         df_final.drop(columns=[col for col in ['SMT Qty', 'VZ FWA GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
+
+        # ========================== #
+        # 🎯 Threshold Settings
+        # ========================== #
+        thresholds = {
+            'Ratio': {'value': 50, 'higher_is_better': True},
+            'Perks': {'value': 56, 'higher_is_better': True},
+            'VMP': {'value': 55, 'higher_is_better': True},
+            'Premium Unlimited': {'value': 65, 'higher_is_better': True},
+            'SMT GA': {'value': 30, 'higher_is_better': True},
+            'GP Per Smart': {'value': 460, 'higher_is_better': True},
+            'VHI/FIOS': {'value': 7, 'higher_is_better': True},
+            'VZPH': {'value': 2, 'higher_is_better': True},
+            'Verizon Visa': {'value': 1, 'higher_is_better': True}
+        }
 
         # ========================== #
         # 📊 Display Table
         # ========================== #
-        # st.markdown("### 🌟 Performance Goals (highlighted where thresholds are met)")
-
-        display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'Perks', 'VMP',
-                           'Premium Unlimited', 'GP', 'Projected GP', 'GP Per Smart',
-                           'VZPH', 'Verizon Visa', 'VHI/FIOS']
+        display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'SMT GA',
+                           'Perks', 'VMP', 'Premium Unlimited', 'GP',
+                           'GP Per Smart', 'SMB GA', 'VZPH', 'Verizon Visa', 'VHI/FIOS', 'Projected GP']
         df_final = df_final[display_columns]
 
-        def highlight_goals(val, col):
+        def highlight_thresholds(val, col):
             try:
-                val_float = float(str(val).strip('$').replace('%', '').replace(',', ''))
+                raw_val = float(str(val).replace('%', '').replace('$', '').replace(',', ''))
             except:
                 return ''
-            if col == 'Ratio' and val_float >= thresholds['Ratio']:
-                return 'background-color: lightgreen'
-            elif col == 'GP Per Smart' and val_float >= thresholds['GP Per Smart']:
-                return 'background-color: lightgreen'
-            elif col == 'Perks' and val_float >= thresholds['Perks']:
-                return 'background-color: lightgreen'
-            elif col == 'Premium Unlimited' and val_float >= thresholds['Premium Unlimited']:
-                return 'background-color: lightgreen'
-            elif col == 'VMP' and val_float >= thresholds['VMP']:
-                return 'background-color: lightgreen'
-            return ''
+            threshold = thresholds.get(col)
+            if not threshold:
+                return ''
+            if threshold['higher_is_better']:
+                return 'background-color: lightgreen' if raw_val >= threshold['value'] else 'background-color: lightcoral'
+            else:
+                return 'background-color: lightgreen' if raw_val <= threshold['value'] else 'background-color: lightcoral'
 
-        styled_df = df_final.style.applymap(lambda v: highlight_goals(v, col=col), subset=pd.IndexSlice[:, df_final.columns[1:]])
+        def apply_styling(df):
+            styles = pd.DataFrame('', index=df.index, columns=df.columns)
+            for col in df.columns:
+                if col in thresholds:
+                    for idx in df.index:
+                        styles.at[idx, col] = highlight_thresholds(df.at[idx, col], col)
+            return styles
+
+        styled_df = df_final.style.apply(apply_styling, axis=None)
 
         st.subheader("📄 Performance Table with Goals & Totals")
         st.dataframe(styled_df, use_container_width=True)
