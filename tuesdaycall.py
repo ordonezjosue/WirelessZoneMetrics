@@ -107,12 +107,15 @@ if uploaded_file is not None:
         # Filter out employees with all zeros
         df_filtered = df_grouped[(df_grouped.drop(columns='Employee') != 0).any(axis=1)]
 
-        # Add total row
+        # Add TOTAL row with mixed sums and averages
+        average_cols = ['Ratio', 'Perks', 'VMP', 'Premium Unlimited', 'GP Per Smart']
         summary_data = df_filtered.drop(columns='Employee').sum(numeric_only=True)
+        for col in average_cols:
+            if col in df_filtered.columns:
+                summary_data[col] = df_filtered[col].mean()
         summary_data['Projected GP'] = df_filtered['Projected GP'].sum()
         summary_row = pd.DataFrame([summary_data])
         summary_row.insert(0, 'Employee', 'TOTAL')
-
         df_final = pd.concat([df_filtered, summary_row], ignore_index=True)
 
         # Format output
@@ -135,9 +138,7 @@ if uploaded_file is not None:
         # Drop internal-use columns
         df_final.drop(columns=[col for col in ['SMT Qty', 'VZ FWA GA', 'VZ FIOS GA'] if col in df_final.columns], inplace=True)
 
-        # ========================== #
         # 🎯 Threshold Settings
-        # ========================== #
         thresholds = {
             'Ratio': {'value': 50, 'higher_is_better': True},
             'Perks': {'value': 56, 'higher_is_better': True},
@@ -150,9 +151,7 @@ if uploaded_file is not None:
             'Verizon Visa': {'value': 1, 'higher_is_better': True}
         }
 
-        # ========================== #
         # 📊 Display Table
-        # ========================== #
         display_columns = ['Employee', 'News', 'Upgrades', 'Ratio', 'SMT GA',
                            'Perks', 'VMP', 'Premium Unlimited', 'GP',
                            'GP Per Smart', 'SMB GA', 'VZPH', 'Verizon Visa', 'VHI/FIOS', 'Projected GP']
@@ -184,9 +183,7 @@ if uploaded_file is not None:
         st.subheader("📄 Performance Table with Goals & Totals")
         st.dataframe(styled_df, use_container_width=True)
 
-        # ========================== #
         # 📊 GP Summary
-        # ========================== #
         total_gp = df_filtered['GP'].sum()
         daily_avg_gp = total_gp / days_elapsed
         projected_gp = daily_avg_gp * days_in_month
@@ -199,9 +196,7 @@ if uploaded_file is not None:
 - **Projected Monthly GP** (for {today.strftime('%B')}): `${projected_gp:,.2f}`
 """)
 
-        # ========================== #
         # 📅 Export CSV Button
-        # ========================== #
         csv = df_final.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="⬇️ Download CSV Report",
